@@ -113,9 +113,11 @@ def status(ctx):
         console.print("[red]● Daemon stopped[/red]")
 
     from life_ai.capture.frame_store import FrameStore
+    from life_ai.capture.screen import ScreenCapture
     store = FrameStore(config.data_dir)
+    screen_store = ScreenCapture(config.data_dir)
     frames_today = store.get_frame_count_today()
-    disk = store.get_disk_usage()
+    disk = store.get_disk_usage() + screen_store.get_disk_usage()
     disk_mb = disk / (1024 * 1024)
 
     from life_ai.storage.database import Database
@@ -176,6 +178,7 @@ def look(ctx):
 
     from life_ai.capture.camera import Camera
     from life_ai.capture.frame_store import FrameStore
+    from life_ai.capture.screen import ScreenCapture
     from life_ai.claude.analyzer import FrameAnalyzer
     from life_ai.storage.database import Database
     from life_ai.storage.models import Frame
@@ -196,14 +199,18 @@ def look(ctx):
     now = datetime.now()
     store = FrameStore(config.data_dir, config.capture.jpeg_quality)
     rel_path = store.save(raw, now)
-    abs_path = config.data_dir / rel_path
+
+    screen = ScreenCapture(config.data_dir)
+    screen_path = screen.capture(now) or ""
 
     scene = SceneAnalyzer(config.analysis.brightness_dark, config.analysis.brightness_bright)
     brightness = scene.get_brightness(raw)
 
-    frame = Frame(timestamp=now, path=rel_path, brightness=brightness)
+    frame = Frame(timestamp=now, path=rel_path, screen_path=screen_path, brightness=brightness)
 
-    console.print(f"[green]Captured:[/green] {abs_path}")
+    console.print(f"[green]Camera:[/green]  {config.data_dir / rel_path}")
+    if screen_path:
+        console.print(f"[green]Screen:[/green]  {config.data_dir / screen_path}")
     console.print(f"[dim]Asking Claude Code to look...[/dim]")
 
     analyzer = FrameAnalyzer()

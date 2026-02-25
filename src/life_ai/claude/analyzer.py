@@ -67,20 +67,42 @@ def _call_claude(prompt: str, timeout: int = 120, model: str = "haiku") -> str |
 
 
 class FrameAnalyzer:
-    """Calls Claude Code CLI to analyze individual webcam frames."""
+    """Calls Claude Code CLI to analyze webcam frames + screen captures."""
 
     def analyze(self, frame: Frame, data_dir: Path) -> str:
-        abs_path = (data_dir / frame.path).resolve()
-        if not abs_path.exists():
-            log.warning("Frame not found: %s", abs_path)
+        cam_path = (data_dir / frame.path).resolve() if frame.path else None
+        screen_path = (data_dir / frame.screen_path).resolve() if frame.screen_path else None
+
+        has_cam = cam_path and cam_path.exists()
+        has_screen = screen_path and screen_path.exists()
+
+        if not has_cam and not has_screen:
+            log.warning("No images to analyze")
             return ""
 
-        prompt = (
-            f"画像ファイル {abs_path} を読んで、ウェブカメラに写っているものを"
-            f"1-2文で簡潔に日本語で説明してください。"
-            f"人物がいれば、その状態（PC作業中、スマホを見ている、離席、寝ている等）に注目してください。"
-            f"説明だけを出力してください。"
-        )
+        if has_cam and has_screen:
+            prompt = (
+                f"以下の2つの画像を読んで、この人が今何をしているか1-2文で日本語で説明してください。\n"
+                f"1. ウェブカメラ映像: {cam_path}\n"
+                f"2. PC画面キャプチャ: {screen_path}\n"
+                f"ウェブカメラからは人物の物理的な状態を、画面キャプチャからはPC上での活動内容を読み取ってください。"
+                f"説明だけを出力してください。"
+            )
+        elif has_cam:
+            prompt = (
+                f"画像ファイル {cam_path} を読んで、ウェブカメラに写っているものを"
+                f"1-2文で簡潔に日本語で説明してください。"
+                f"人物がいれば、その状態（PC作業中、スマホを見ている、離席、寝ている等）に注目してください。"
+                f"説明だけを出力してください。"
+            )
+        else:
+            prompt = (
+                f"画像ファイル {screen_path} を読んで、PC画面に表示されている内容を"
+                f"1-2文で簡潔に日本語で説明してください。"
+                f"どのアプリ・サイトを使っているか、何の作業をしているかに注目してください。"
+                f"説明だけを出力してください。"
+            )
+
         result = _call_claude(prompt)
         return result or ""
 

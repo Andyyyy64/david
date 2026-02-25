@@ -11,6 +11,7 @@ CREATE TABLE IF NOT EXISTS frames (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     timestamp TEXT NOT NULL,
     path TEXT NOT NULL,
+    screen_path TEXT DEFAULT '',
     brightness REAL DEFAULT 0,
     motion_score REAL DEFAULT 0,
     scene_type TEXT DEFAULT 'normal',
@@ -70,6 +71,9 @@ class Database:
         if "claude_description" not in cols:
             self._conn.execute(MIGRATE_CLAUDE_DESC)
             self._conn.commit()
+        if "screen_path" not in cols:
+            self._conn.execute("ALTER TABLE frames ADD COLUMN screen_path TEXT DEFAULT ''")
+            self._conn.commit()
         # Ensure summaries table exists
         self._conn.executescript(MIGRATE_SUMMARIES)
 
@@ -80,11 +84,12 @@ class Database:
 
     def insert_frame(self, frame: Frame) -> int:
         cur = self._conn.execute(
-            """INSERT INTO frames (timestamp, path, brightness, motion_score, scene_type, claude_description)
-               VALUES (?, ?, ?, ?, ?, ?)""",
+            """INSERT INTO frames (timestamp, path, screen_path, brightness, motion_score, scene_type, claude_description)
+               VALUES (?, ?, ?, ?, ?, ?, ?)""",
             (
                 frame.timestamp.isoformat(),
                 frame.path,
+                frame.screen_path,
                 frame.brightness,
                 frame.motion_score,
                 frame.scene_type.value,
@@ -237,6 +242,7 @@ class Database:
             id=row["id"],
             timestamp=datetime.fromisoformat(row["timestamp"]),
             path=row["path"],
+            screen_path=row["screen_path"] or "",
             brightness=row["brightness"],
             motion_score=row["motion_score"],
             scene_type=SceneType(row["scene_type"]),

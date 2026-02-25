@@ -27,6 +27,7 @@ class Frame:
     id: int | None = None
     timestamp: datetime = field(default_factory=datetime.now)
     path: str = ""
+    screen_path: str = ""
     brightness: float = 0.0
     motion_score: float = 0.0
     scene_type: SceneType = SceneType.NORMAL

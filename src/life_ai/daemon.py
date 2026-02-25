@@ -10,6 +10,7 @@ from life_ai.analysis.motion import MotionDetector
 from life_ai.analysis.scene import SceneAnalyzer
 from life_ai.capture.camera import Camera
 from life_ai.capture.frame_store import FrameStore
+from life_ai.capture.screen import ScreenCapture
 from life_ai.claude.analyzer import FrameAnalyzer, SummaryGenerator
 from life_ai.config import Config
 from life_ai.storage.database import Database
@@ -24,6 +25,7 @@ class Daemon:
         self._running = False
         self._camera = Camera(config.capture)
         self._frame_store = FrameStore(config.data_dir, config.capture.jpeg_quality)
+        self._screen = ScreenCapture(config.data_dir)
         self._db = Database(config.db_path)
         self._motion = MotionDetector(config.analysis.motion_threshold)
         self._scene = SceneAnalyzer(config.analysis.brightness_dark, config.analysis.brightness_bright)
@@ -68,8 +70,9 @@ class Daemon:
         now = datetime.now()
         self._frame_count += 1
 
-        # Save frame
+        # Save webcam frame + screen capture
         rel_path = self._frame_store.save(raw_frame, now)
+        screen_path = self._screen.capture(now) or ""
 
         # Local lightweight analysis
         brightness = self._scene.get_brightness(raw_frame)
@@ -80,6 +83,7 @@ class Daemon:
         frame = Frame(
             timestamp=now,
             path=rel_path,
+            screen_path=screen_path,
             brightness=brightness,
             motion_score=motion_score,
             scene_type=scene_type,
