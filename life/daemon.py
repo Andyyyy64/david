@@ -62,7 +62,9 @@ class Daemon:
         self._summary_gen = SummaryGenerator(provider, self._db, config.data_dir)
 
         # Track last summary time per scale
-        self._last_summary: dict[str, datetime] = {}
+        # Initialize to now so we wait the full interval before first generation
+        now = datetime.now()
+        self._last_summary: dict[str, datetime] = {scale: now for scale in SCALES}
 
     def run(self):
         self._write_pid()
