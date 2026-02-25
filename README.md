@@ -1,28 +1,28 @@
 # life.ai
 
-パーソナルライフオブザーバー — カメラ・画面キャプチャ・音声からAIが日常を記録・分析するシステム。
+Personal life observer — an AI-powered system that records and analyzes your daily activities through webcam, screen capture, and audio.
 
-## 機能
+## Features
 
-- **30秒間隔キャプチャ** — ウェブカメラ + PC画面 + 音声を自動記録
-- **バーストスクリーンキャプチャ** — 30秒間に3枚（0s, 10s, 20s）の画面を撮影し、時系列で変化を把握
-- **AI分析** — Gemini / Claude が各フレームを分析し、活動内容を日本語で記述
-- **アクティビティ分類** — 「プログラミング」「YouTube視聴」「ブラウジング」等のカテゴリを自動付与
-- **マルチスケールサマリー** — 10分〜24時間の階層的な活動要約を自動生成
-- **イベント検知** — シーン変化（明→暗）や大きな動きを自動検出
-- **ライブフィード** — MJPEG 10fps リアルタイム映像配信
-- **Web UI** — タイムライン表示、フレーム詳細、バーストスクリーン切替、サマリー閲覧
+- **30-second interval capture** — Automatically records webcam + PC screen + audio
+- **Burst screen capture** — Takes 3 screenshots per interval (0s, 10s, 20s) to track temporal changes
+- **AI analysis** — Gemini / Claude analyzes each frame and describes what you're doing
+- **Activity classification** — Auto-categorizes activities (e.g. "Programming", "YouTube", "Browsing")
+- **Multi-scale summaries** — Hierarchical activity summaries from 10min to 24h, generated automatically
+- **Event detection** — Detects scene changes (light→dark) and motion spikes
+- **Live feed** — MJPEG 10fps real-time video stream
+- **Web UI** — Timeline view, frame details, burst screenshot switching, summary browsing
 
-## セットアップ
+## Setup
 
-### 必要環境
+### Requirements
 
 - Python 3.12+
 - Node.js 22+
-- WSL2 (画面キャプチャにpowershell.exeを使用)
-- Gemini API キーまたは Claude API キー
+- WSL2 (uses powershell.exe for screen capture)
+- Gemini API key or Claude API key
 
-### インストール
+### Installation
 
 ```bash
 # Python
@@ -32,13 +32,13 @@ uv sync  # or pip install -e .
 cd web && npm install
 ```
 
-### 設定
+### Configuration
 
 ```bash
-# .env に API キーを設定
+# Set API key in .env
 echo "GEMINI_API_KEY=your-key-here" > .env
 
-# life.toml でプロバイダーを選択（省略時はデフォルト値）
+# Configure provider in life.toml (defaults used if omitted)
 cat > life.toml << 'EOF'
 [llm]
 provider = "gemini"           # "gemini" or "claude"
@@ -46,56 +46,56 @@ gemini_model = "gemini-2.5-flash"
 
 [capture]
 interval_sec = 30
-screen_burst_count = 3        # バーストスクリーン枚数
+screen_burst_count = 3        # number of burst screenshots
 EOF
 ```
 
-`data/context.md` にユーザーの背景情報を書くと、AIが名前や環境を踏まえた分析をします。
+Add user context to `data/context.md` so the AI can reference your name, environment, and habits in its analysis.
 
-### 起動
+### Running
 
 ```bash
-# デーモン起動（バックグラウンド）
+# Start daemon (background)
 life start -d
 
-# Web UI 起動
+# Start web UI
 cd web && npm run dev
 ```
 
 - Web UI: http://localhost:5173
 - API: http://localhost:3001
-- ライブフィード: http://localhost:3002
+- Live feed: http://localhost:3002
 
-## CLI コマンド
+## CLI Commands
 
-| コマンド | 説明 |
-|---------|------|
-| `life start [-d]` | デーモン起動（`-d` でバックグラウンド） |
-| `life stop` | デーモン停止 |
-| `life status` | 状態表示（フレーム数、サマリー数、ディスク使用量） |
-| `life capture` | テストフレームを1枚撮影 |
-| `life look` | 撮影してAIに即分析させる |
-| `life recent [-n 5]` | 直近のフレーム分析を表示 |
-| `life today [DATE]` | タイムライン表示 |
-| `life stats [DATE]` | 日別統計 |
-| `life summaries [DATE] [--scale 1h]` | サマリー表示（10m/30m/1h/6h/12h/24h） |
-| `life events [DATE]` | イベント一覧 |
-| `life review [DATE] [--json]` | レビューパッケージ生成 |
+| Command | Description |
+|---------|-------------|
+| `life start [-d]` | Start the observer daemon (`-d` for background) |
+| `life stop` | Stop the running daemon |
+| `life status` | Show status (frame count, summaries, disk usage) |
+| `life capture` | Capture a single test frame |
+| `life look` | Capture and analyze a frame immediately |
+| `life recent [-n 5]` | Show recent frame analyses |
+| `life today [DATE]` | Show timeline for the day |
+| `life stats [DATE]` | Show daily statistics |
+| `life summaries [DATE] [--scale 1h]` | Show summaries (10m/30m/1h/6h/12h/24h) |
+| `life events [DATE]` | List detected events |
+| `life review [DATE] [--json]` | Generate review package |
 
-## 設定オプション
+## Configuration Options
 
-`life.toml` で以下を設定可能:
+All options in `life.toml`:
 
 ```toml
 data_dir = "data"
 
 [capture]
-device = 0              # カメラデバイスID
-interval_sec = 30       # キャプチャ間隔（秒）
+device = 0              # camera device ID
+interval_sec = 30       # capture interval (seconds)
 width = 640
 height = 480
 jpeg_quality = 85
-screen_burst_count = 3  # バーストスクリーン枚数
+screen_burst_count = 3  # burst screenshots per interval
 
 [analysis]
 motion_threshold = 0.02
@@ -110,22 +110,22 @@ gemini_model = "gemini-2.5-flash"
 
 ## Web API
 
-| エンドポイント | 説明 |
-|--------------|------|
-| `GET /api/frames?date=YYYY-MM-DD` | フレーム一覧 |
-| `GET /api/frames/latest` | 最新フレーム |
-| `GET /api/frames/:id` | フレーム詳細 |
-| `GET /api/summaries?date=...&scale=...` | サマリー一覧 |
-| `GET /api/events?date=...` | イベント一覧 |
-| `GET /api/stats?date=...` | 日別統計 |
-| `GET /api/stats/activities?date=...` | アクティビティ別統計 |
-| `GET /api/stats/dates` | データのある日付一覧 |
-| `GET /media/{path}` | 画像・音声ファイル配信 |
+| Endpoint | Description |
+|----------|-------------|
+| `GET /api/frames?date=YYYY-MM-DD` | List frames for a date |
+| `GET /api/frames/latest` | Get latest frame |
+| `GET /api/frames/:id` | Get frame by ID |
+| `GET /api/summaries?date=...&scale=...` | List summaries |
+| `GET /api/events?date=...` | List events |
+| `GET /api/stats?date=...` | Daily statistics |
+| `GET /api/stats/activities?date=...` | Activity breakdown with duration |
+| `GET /api/stats/dates` | List dates with data |
+| `GET /media/{path}` | Serve image/audio files |
 
-## 技術スタック
+## Tech Stack
 
 - **Backend**: Python 3.12 / Click / OpenCV / SQLite
-- **LLM**: Google Gemini / Anthropic Claude（抽象化プロバイダー層）
+- **LLM**: Google Gemini / Anthropic Claude (abstracted provider layer)
 - **Frontend**: React 19 / TypeScript / Vite
 - **Web Server**: Hono + better-sqlite3
-- **Infra**: WSL2 + powershell.exe（画面キャプチャ）
+- **Infra**: WSL2 + powershell.exe (screen capture)
