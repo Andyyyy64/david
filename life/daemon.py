@@ -14,13 +14,14 @@ import cv2
 from life.analysis.motion import MotionDetector
 from life.analysis.scene import SceneAnalyzer
 from life.analysis.transcribe import Transcriber
+from life.analyzer import FrameAnalyzer, SummaryGenerator
 from life.capture.audio import AudioCapture
 from life.capture.camera import Camera
 from life.capture.frame_store import FrameStore
 from life.capture.screen import ScreenCapture
-from life.claude.analyzer import FrameAnalyzer, SummaryGenerator
 from life.config import Config
 from life.live import LiveServer
+from life.llm import create_provider
 from life.storage.database import Database
 from life.storage.models import Event, Frame, SceneType, SCALES
 
@@ -35,19 +36,28 @@ class Daemon:
         self._frame_store = FrameStore(config.data_dir, config.capture.jpeg_quality)
         self._screen = ScreenCapture(config.data_dir)
         self._audio = AudioCapture(config.data_dir)
-        self._transcriber = Transcriber(
-            context_path=config.data_dir / "context.md",
-        )
         self._db = Database(config.db_path)
         self._motion = MotionDetector(config.analysis.motion_threshold)
         self._scene = SceneAnalyzer(config.analysis.brightness_dark, config.analysis.brightness_bright)
-        self._frame_analyzer = FrameAnalyzer()
-        self._summary_gen = SummaryGenerator(self._db, config.data_dir)
         self._live = LiveServer(port=3002)
         self._frame_count = 0
         self._last_scene: SceneType | None = None
         self._pending_audio: str | None = None  # audio from previous interval
         self._audio_thread: threading.Thread | None = None
+
+        # Create LLM provider from config
+        provider = create_provider(
+            config.llm.provider,
+            claude_model=config.llm.claude_model,
+            gemini_model=config.llm.gemini_model,
+        )
+        log.info("LLM provider: %s", config.llm.provider)
+
+        self._transcriber = Transcriber(
+            provider, context_path=config.data_dir / "context.md",
+        )
+        self._frame_analyzer = FrameAnalyzer(provider, config.data_dir)
+        self._summary_gen = SummaryGenerator(provider, self._db, config.data_dir)
 
         # Track last summary time per scale
         self._last_summary: dict[str, datetime] = {}
@@ -184,11 +194,11 @@ class Daemon:
             "yes" if audio_path else "no",
         )
 
-        # Claude frame analysis (every frame, now with transcription context)
-        description = self._frame_analyzer.analyze(frame, self._config.data_dir)
+        # LLM frame analysis (every frame, with transcription context)
+        description = self._frame_analyzer.analyze(frame)
         if description:
             self._db.update_frame_description(frame_id, description)
-            log.info("Claude: %s", description[:80])
+            log.info("Analysis: %s", description[:80])
 
         # Multi-scale summaries
         self._check_summaries(now)

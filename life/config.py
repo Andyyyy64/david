@@ -25,10 +25,18 @@ class AnalysisConfig:
 
 
 @dataclass
+class LLMConfig:
+    provider: str = "claude"
+    claude_model: str = "haiku"
+    gemini_model: str = "gemini-2.5-flash"
+
+
+@dataclass
 class Config:
     data_dir: Path = field(default_factory=lambda: DEFAULT_DATA_DIR)
     capture: CaptureConfig = field(default_factory=CaptureConfig)
     analysis: AnalysisConfig = field(default_factory=AnalysisConfig)
+    llm: LLMConfig = field(default_factory=LLMConfig)
     pid_file: Path = field(default_factory=lambda: DEFAULT_DATA_DIR / "life.pid")
     db_path: Path = field(default_factory=lambda: DEFAULT_DATA_DIR / "life.db")
 
@@ -52,4 +60,8 @@ class Config:
             for k, v in data["analysis"].items():
                 if hasattr(cfg.analysis, k):
                     setattr(cfg.analysis, k, type(getattr(cfg.analysis, k))(v))
+        if "llm" in data:
+            for k, v in data["llm"].items():
+                if hasattr(cfg.llm, k):
+                    setattr(cfg.llm, k, str(v))
         return cfg

@@ -178,10 +178,11 @@ def look(ctx):
     """Capture a frame and have Claude Code analyze it right now."""
     config: Config = ctx.obj["config"]
 
+    from life.analyzer import FrameAnalyzer
     from life.capture.camera import Camera
     from life.capture.frame_store import FrameStore
     from life.capture.screen import ScreenCapture
-    from life.claude.analyzer import FrameAnalyzer
+    from life.llm import create_provider
     from life.storage.database import Database
     from life.storage.models import Frame
     from life.analysis.scene import SceneAnalyzer
@@ -213,10 +214,15 @@ def look(ctx):
     console.print(f"[green]Camera:[/green]  {config.data_dir / rel_path}")
     if screen_path:
         console.print(f"[green]Screen:[/green]  {config.data_dir / screen_path}")
-    console.print(f"[dim]Asking Claude Code to look...[/dim]")
+    console.print(f"[dim]Analyzing...[/dim]")
 
-    analyzer = FrameAnalyzer()
-    description = analyzer.analyze(frame, config.data_dir)
+    provider = create_provider(
+        config.llm.provider,
+        claude_model=config.llm.claude_model,
+        gemini_model=config.llm.gemini_model,
+    )
+    analyzer = FrameAnalyzer(provider, config.data_dir)
+    description = analyzer.analyze(frame)
 
     if description:
         console.print(Panel(description, title="Claude Code says", border_style="blue"))
