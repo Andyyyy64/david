@@ -8,8 +8,8 @@ import tempfile
 from datetime import datetime, timedelta
 from pathlib import Path
 
-from life_ai.storage.database import Database
-from life_ai.storage.models import Frame, Summary
+from life.storage.database import Database
+from life.storage.models import Frame, Summary
 
 log = logging.getLogger(__name__)
 

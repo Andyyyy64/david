@@ -14,7 +14,10 @@ dependencies = [
 ]
 
 [project.scripts]
-life = "life_ai.cli:cli"
+life = "life.cli:cli"
+
+[tool.hatch.build.targets.wheel]
+packages = ["life"]
 
 [build-system]
 requires = ["hatchling"]

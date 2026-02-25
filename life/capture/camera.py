@@ -7,7 +7,7 @@ import cv2
 import numpy as np
 
 if TYPE_CHECKING:
-    from life_ai.config import CaptureConfig
+    from life.config import CaptureConfig
 
 log = logging.getLogger(__name__)
 

@@ -8,17 +8,17 @@ import time
 from datetime import datetime, timedelta
 from pathlib import Path
 
-from life_ai.analysis.motion import MotionDetector
-from life_ai.analysis.scene import SceneAnalyzer
-from life_ai.analysis.transcribe import Transcriber
-from life_ai.capture.audio import AudioCapture
-from life_ai.capture.camera import Camera
-from life_ai.capture.frame_store import FrameStore
-from life_ai.capture.screen import ScreenCapture
-from life_ai.claude.analyzer import FrameAnalyzer, SummaryGenerator
-from life_ai.config import Config
-from life_ai.storage.database import Database
-from life_ai.storage.models import Event, Frame, SceneType, SCALES
+from life.analysis.motion import MotionDetector
+from life.analysis.scene import SceneAnalyzer
+from life.analysis.transcribe import Transcriber
+from life.capture.audio import AudioCapture
+from life.capture.camera import Camera
+from life.capture.frame_store import FrameStore
+from life.capture.screen import ScreenCapture
+from life.claude.analyzer import FrameAnalyzer, SummaryGenerator
+from life.config import Config
+from life.storage.database import Database
+from life.storage.models import Event, Frame, SceneType, SCALES
 
 log = logging.getLogger(__name__)
 

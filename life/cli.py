@@ -13,7 +13,7 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
 
-from life_ai.config import Config
+from life.config import Config
 
 console = Console()
 
@@ -57,7 +57,7 @@ def start(ctx, background: bool):
 
     if background:
         proc = subprocess.Popen(
-            [sys.executable, "-m", "life_ai", "start"],
+            [sys.executable, "-m", "life", "start"],
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
             start_new_session=True,
@@ -65,7 +65,7 @@ def start(ctx, background: bool):
         console.print(f"[green]Daemon started in background (PID {proc.pid})[/green]")
     else:
         console.print("[green]Starting life observer (Claude Code watching)...[/green]")
-        from life_ai.daemon import Daemon
+        from life.daemon import Daemon
         daemon = Daemon(config)
         daemon.run()
 
@@ -112,9 +112,9 @@ def status(ctx):
     else:
         console.print("[red]● Daemon stopped[/red]")
 
-    from life_ai.capture.frame_store import FrameStore
-    from life_ai.capture.screen import ScreenCapture
-    from life_ai.capture.audio import AudioCapture
+    from life.capture.frame_store import FrameStore
+    from life.capture.screen import ScreenCapture
+    from life.capture.audio import AudioCapture
     store = FrameStore(config.data_dir)
     screen_store = ScreenCapture(config.data_dir)
     audio_store = AudioCapture(config.data_dir)
@@ -122,7 +122,7 @@ def status(ctx):
     disk = store.get_disk_usage() + screen_store.get_disk_usage() + audio_store.get_disk_usage()
     disk_mb = disk / (1024 * 1024)
 
-    from life_ai.storage.database import Database
+    from life.storage.database import Database
     if config.db_path.exists():
         db = Database(config.db_path)
         db_frames = db.get_frame_count_for_date(date.today())
@@ -149,8 +149,8 @@ def capture(ctx):
     """Capture a single test frame."""
     config: Config = ctx.obj["config"]
 
-    from life_ai.capture.camera import Camera
-    from life_ai.capture.frame_store import FrameStore
+    from life.capture.camera import Camera
+    from life.capture.frame_store import FrameStore
 
     camera = Camera(config.capture)
     if not camera.open():
@@ -178,13 +178,13 @@ def look(ctx):
     """Capture a frame and have Claude Code analyze it right now."""
     config: Config = ctx.obj["config"]
 
-    from life_ai.capture.camera import Camera
-    from life_ai.capture.frame_store import FrameStore
-    from life_ai.capture.screen import ScreenCapture
-    from life_ai.claude.analyzer import FrameAnalyzer
-    from life_ai.storage.database import Database
-    from life_ai.storage.models import Frame
-    from life_ai.analysis.scene import SceneAnalyzer
+    from life.capture.camera import Camera
+    from life.capture.frame_store import FrameStore
+    from life.capture.screen import ScreenCapture
+    from life.claude.analyzer import FrameAnalyzer
+    from life.storage.database import Database
+    from life.storage.models import Frame
+    from life.analysis.scene import SceneAnalyzer
 
     camera = Camera(config.capture)
     if not camera.open():
@@ -235,7 +235,7 @@ def recent(ctx, count: int):
     """Show recent frame analyses by Claude Code."""
     config: Config = ctx.obj["config"]
 
-    from life_ai.storage.database import Database
+    from life.storage.database import Database
 
     if not config.db_path.exists():
         console.print("[dim]No data yet[/dim]")
@@ -276,9 +276,9 @@ def today(ctx, target_date: str | None):
     config: Config = ctx.obj["config"]
     d = _parse_date(target_date) if target_date else date.today()
 
-    from life_ai.storage.database import Database
-    from life_ai.summary.formatter import SummaryFormatter
-    from life_ai.summary.timeline import TimelineBuilder
+    from life.storage.database import Database
+    from life.summary.formatter import SummaryFormatter
+    from life.summary.timeline import TimelineBuilder
 
     if not config.db_path.exists():
         console.print("[dim]No data yet[/dim]")
@@ -299,9 +299,9 @@ def stats(ctx, target_date: str | None):
     config: Config = ctx.obj["config"]
     d = _parse_date(target_date) if target_date else date.today()
 
-    from life_ai.storage.database import Database
-    from life_ai.summary.formatter import SummaryFormatter
-    from life_ai.summary.timeline import TimelineBuilder
+    from life.storage.database import Database
+    from life.summary.formatter import SummaryFormatter
+    from life.summary.timeline import TimelineBuilder
 
     if not config.db_path.exists():
         console.print("[dim]No data yet[/dim]")
@@ -323,7 +323,7 @@ def summaries(ctx, target_date: str | None, scale: str | None):
     config: Config = ctx.obj["config"]
     d = _parse_date(target_date) if target_date else date.today()
 
-    from life_ai.storage.database import Database
+    from life.storage.database import Database
 
     if not config.db_path.exists():
         console.print("[dim]No data yet[/dim]")
@@ -353,7 +353,7 @@ def events(ctx, target_date: str | None):
     config: Config = ctx.obj["config"]
     d = _parse_date(target_date) if target_date else date.today()
 
-    from life_ai.storage.database import Database
+    from life.storage.database import Database
 
     if not config.db_path.exists():
         console.print("[dim]No data yet[/dim]")
@@ -390,8 +390,8 @@ def review(ctx, target_date: str | None, as_json: bool):
     config: Config = ctx.obj["config"]
     d = _parse_date(target_date) if target_date else date.today()
 
-    from life_ai.claude.review import ReviewPackager
-    from life_ai.storage.database import Database
+    from life.claude.review import ReviewPackager
+    from life.storage.database import Database
 
     if not config.db_path.exists():
         console.print("[dim]No data yet[/dim]")

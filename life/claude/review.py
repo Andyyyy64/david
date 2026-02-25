@@ -4,9 +4,9 @@ import json
 from datetime import date
 from pathlib import Path
 
-from life_ai.config import Config
-from life_ai.storage.database import Database
-from life_ai.summary.timeline import TimelineBuilder
+from life.config import Config
+from life.storage.database import Database
+from life.summary.timeline import TimelineBuilder
 
 
 class ReviewPackager:
