@@ -1,0 +1,21 @@
+[project]
+name = "life-ai"
+version = "0.1.0"
+description = "Personal life observer - camera-based daily activity tracker and summarizer"
+readme = { text = "", content-type = "text/plain" }
+authors = [
+    { name = "andy", email = "takuyarossi77@gmail.com" }
+]
+requires-python = ">=3.12"
+dependencies = [
+    "opencv-python-headless>=4.9",
+    "click>=8.1",
+    "rich>=13.0",
+]
+
+[project.scripts]
+life = "life_ai.cli:cli"
+
+[build-system]
+requires = ["uv_build>=0.8.4,<0.9.0"]
+build-backend = "uv_build"
