@@ -1,10 +1,20 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { api } from '../lib/api';
 import type { Summary } from '../lib/types';
+
+const POLL_INTERVAL = 30_000;
 
 export function useSummaries(date: string, scale?: string) {
   const [summaries, setSummaries] = useState<Summary[]>([]);
   const [loading, setLoading] = useState(true);
+
+  const fetchSummaries = useCallback(() => {
+    if (!date) return;
+    api.summaries
+      .list(date, scale)
+      .then(setSummaries)
+      .catch(console.error);
+  }, [date, scale]);
 
   useEffect(() => {
     if (!date) return;
@@ -15,6 +25,15 @@ export function useSummaries(date: string, scale?: string) {
       .catch(console.error)
       .finally(() => setLoading(false));
   }, [date, scale]);
+
+  useEffect(() => {
+    if (!date) return;
+    const isToday = date === new Date().toISOString().slice(0, 10);
+    if (!isToday) return;
+
+    const id = setInterval(fetchSummaries, POLL_INTERVAL);
+    return () => clearInterval(id);
+  }, [date, fetchSummaries]);
 
   return { summaries, loading };
 }

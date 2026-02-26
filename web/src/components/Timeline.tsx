@@ -9,15 +9,29 @@ interface Props {
   loading: boolean;
 }
 
-function sceneColor(scene: string): string {
-  switch (scene) {
-    case 'dark':
-      return 'var(--scene-dark)';
-    case 'bright':
-      return 'var(--scene-bright)';
-    default:
-      return 'var(--scene-normal)';
+const META_CATEGORIES: Record<string, string[]> = {
+  focus: ['プログラミング', 'ドキュメント閲覧', 'コンテンツ制作', '読書'],
+  communication: ['チャット', '会話'],
+  entertainment: ['YouTube視聴', 'ゲーム', 'SNS', '音楽'],
+  browsing: ['ブラウジング'],
+  break: ['休憩', '離席', '食事'],
+};
+
+const META_COLORS: Record<string, string> = {
+  focus: '#60a860',
+  communication: '#6088d0',
+  entertainment: '#d06060',
+  browsing: '#d0a840',
+  break: '#888888',
+  other: '#a060b0',
+};
+
+function activityColor(activity: string): string {
+  if (!activity) return META_COLORS.other;
+  for (const [meta, activities] of Object.entries(META_CATEGORIES)) {
+    if (activities.includes(activity)) return META_COLORS[meta];
   }
+  return META_COLORS.other;
 }
 
 export function Timeline({ frames, events, selectedFrame, onSelectFrame, loading }: Props) {
@@ -81,7 +95,7 @@ export function Timeline({ frames, events, selectedFrame, onSelectFrame, loading
                   style={{
                     width: size,
                     height: size,
-                    backgroundColor: sceneColor(frame.scene_type),
+                    backgroundColor: activityColor(frame.activity),
                   }}
                   onClick={() => onSelectFrame(frame)}
                   title={`${new Date(frame.timestamp).toLocaleTimeString('ja-JP')} - ${frame.claude_description || frame.scene_type}`}

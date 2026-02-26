@@ -40,13 +40,25 @@ export default function App() {
   const { summaries } = useSummaries(date);
   const { events } = useEvents(date);
 
+  const fetchStats = useCallback(() => {
+    api.stats.get(date).then(setStats).catch(console.error);
+  }, [date]);
+
   useEffect(() => {
     api.stats.dates().then(setAvailableDates).catch(console.error);
   }, []);
 
   useEffect(() => {
-    api.stats.get(date).then(setStats).catch(console.error);
-  }, [date]);
+    fetchStats();
+  }, [fetchStats]);
+
+  // Poll stats when viewing today
+  useEffect(() => {
+    const isToday = date === formatDate(new Date());
+    if (!isToday) return;
+    const id = setInterval(fetchStats, 30_000);
+    return () => clearInterval(id);
+  }, [date, fetchStats]);
 
   // Reset selection when date changes
   useEffect(() => {
