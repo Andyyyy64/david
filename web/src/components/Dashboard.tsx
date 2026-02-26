@@ -126,43 +126,67 @@ function WeeklyChart({ rangeStats }: { rangeStats: RangeStats }) {
   );
 }
 
-// Session timeline (gantt-style)
+// Session timeline (gantt-style, single row)
 function SessionTimeline({ sessions }: { sessions: Session[] }) {
   if (sessions.length === 0) return <div className="panel-empty">No sessions</div>;
 
-  const firstTime = new Date(sessions[0].startTime).getTime();
-  const lastTime = new Date(sessions[sessions.length - 1].endTime).getTime();
-  const totalMs = lastTime - firstTime || 1;
+  const totalSec = sessions.reduce((s, ses) => s + ses.durationSec, 0) || 1;
+
+  // Time axis labels
+  const firstTime = new Date(sessions[0].startTime);
+  const lastTime = new Date(sessions[sessions.length - 1].endTime);
+  const startLabel = firstTime.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
+  const endLabel = lastTime.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-      {sessions.map((s, i) => {
-        const left = ((new Date(s.startTime).getTime() - firstTime) / totalMs) * 100;
-        const width = Math.max((s.durationSec * 1000 / totalMs) * 100, 1);
-        return (
-          <div key={i} style={{ position: 'relative', height: 20 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+      {/* Stacked horizontal bar */}
+      <div style={{ display: 'flex', height: 28, borderRadius: 4, overflow: 'hidden' }}>
+        {sessions.map((s, i) => {
+          const pct = (s.durationSec / totalSec) * 100;
+          return (
             <div
+              key={i}
+              title={`${s.activity} (${formatDuration(s.durationSec)})`}
               style={{
-                position: 'absolute',
-                left: `${left}%`,
-                width: `${width}%`,
-                height: '100%',
+                width: `${pct}%`,
+                minWidth: pct > 3 ? undefined : 2,
                 background: META_COLORS[s.metaCategory] || META_COLORS.other,
-                borderRadius: 3,
                 opacity: 0.85,
                 display: 'flex',
                 alignItems: 'center',
-                paddingLeft: 4,
+                justifyContent: 'center',
                 overflow: 'hidden',
+                borderRight: i < sessions.length - 1 ? '1px solid var(--bg-elevated)' : 'none',
               }}
             >
-              <span style={{ fontSize: 10, whiteSpace: 'nowrap', color: '#fff' }}>
-                {s.activity} ({formatDuration(s.durationSec)})
-              </span>
+              {pct > 8 && (
+                <span style={{ fontSize: 10, whiteSpace: 'nowrap', color: '#fff', padding: '0 2px' }}>
+                  {s.activity}
+                </span>
+              )}
             </div>
+          );
+        })}
+      </div>
+      {/* Time axis */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, fontFamily: 'var(--font-mono)', color: 'var(--text-muted)' }}>
+        <span>{startLabel}</span>
+        <span>{endLabel}</span>
+      </div>
+      {/* Legend list */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+        {sessions.map((s, i) => (
+          <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11 }}>
+            <span style={{ width: 10, height: 10, borderRadius: 2, background: META_COLORS[s.metaCategory] || META_COLORS.other, flexShrink: 0 }} />
+            <span style={{ color: 'var(--text-secondary)', minWidth: 100 }}>{s.activity}</span>
+            <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--text-muted)' }}>{formatDuration(s.durationSec)}</span>
+            <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--text-muted)', fontSize: 10 }}>
+              {new Date(s.startTime).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })}–{new Date(s.endTime).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })}
+            </span>
           </div>
-        );
-      })}
+        ))}
+      </div>
     </div>
   );
 }
