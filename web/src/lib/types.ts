@@ -61,3 +61,18 @@ export interface SearchResults {
   frames: Frame[];
   summaries: Summary[];
 }
+
+export interface Session {
+  activity: string;
+  metaCategory: string;
+  startTime: string;
+  endTime: string;
+  durationSec: number;
+  frameCount: number;
+}
+
+export interface ActivityInfo {
+  activity: string;
+  metaCategory: string;
+  frameCount: number;
+}
