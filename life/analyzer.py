@@ -135,24 +135,20 @@ class FrameAnalyzer:
                 "映像と音声の両方を踏まえて説明してください。"
             )
 
-        # Activity classification with canonical + recent categories
+        # Activity classification with strict canonical list
         canonical = get_canonical_categories()
-        recent_activities = self._db.get_recent_activities(limit=15)
-        # Merge: canonical first, then any recent ones not already listed
-        all_categories = list(canonical)
-        for a in recent_activities:
-            normalized = normalize_activity(a)
-            if normalized not in all_categories:
-                all_categories.append(normalized)
-        activities_str = "、".join(all_categories)
+        categories_numbered = "\n".join(f"  {i+1}. {c}" for i, c in enumerate(canonical))
         parts.append(
-            f"\nアクティビティカテゴリ一覧: [{activities_str}]\n"
-            "必ずこの一覧から選んでください。どれにも該当しない場合のみ新しいカテゴリを作成してください。"
+            f"\n以下のアクティビティカテゴリから、最も適切なものを1つ選んでください:\n"
+            f"{categories_numbered}\n\n"
+            "【重要】activityフィールドには上記リストの文字列をそのままコピーしてください。\n"
+            "表記を変えたり、組み合わせたり(例:「プログラミングと会話」)、独自のカテゴリを作らないでください。\n"
+            "複数の活動が同時に行われている場合は、メインの活動を1つだけ選んでください。"
         )
 
         parts.append(
             '\n以下のJSON形式で出力してください（JSON以外は出力しないこと）:\n'
-            '{"activity": "カテゴリ名", "description": "説明文"}\n'
+            '{"activity": "上記リストから選択", "description": "説明文"}\n'
         )
 
         prompt = "\n".join(parts)

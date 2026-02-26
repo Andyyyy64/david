@@ -2,23 +2,25 @@
 
 from __future__ import annotations
 
-# Canonical activity categories and their aliases
-ACTIVITY_ALIASES: dict[str, list[str]] = {
-    "プログラミング": ["コーディング", "開発", "プログラミングと会話", "コード書き"],
-    "YouTube視聴": ["動画視聴", "YouTube", "YouTube閲覧"],
-    "ブラウジング": ["ウェブ閲覧", "Web閲覧", "ネットサーフィン", "インターネット"],
-    "チャット": ["メッセージ", "メッセージング", "LINE", "Slack", "Discord"],
-    "SNS": ["Twitter", "X閲覧", "Instagram", "SNS閲覧", "ソーシャルメディア"],
-    "ゲーム": ["ゲームプレイ", "ゲーム中"],
-    "休憩": ["リラックス", "休息"],
-    "離席": ["不在", "席外し"],
-    "ドキュメント閲覧": ["ドキュメント", "資料閲覧", "PDF閲覧"],
-    "コンテンツ制作": ["コンテンツ作成", "ブログ執筆", "記事作成"],
-    "会話": ["通話", "電話", "ビデオ通話", "ミーティング"],
-    "読書": ["本を読む", "電子書籍"],
-    "音楽": ["音楽鑑賞", "音楽再生"],
-    "食事": ["食事中", "ご飯"],
-}
+import unicodedata
+
+# Canonical activity categories
+CANONICAL_ACTIVITIES: list[str] = [
+    "プログラミング",
+    "YouTube視聴",
+    "ブラウジング",
+    "チャット",
+    "SNS",
+    "ゲーム",
+    "休憩",
+    "離席",
+    "ドキュメント閲覧",
+    "コンテンツ制作",
+    "会話",
+    "読書",
+    "音楽",
+    "食事",
+]
 
 # Meta-categories for productivity scoring
 META_CATEGORIES: dict[str, list[str]] = {
@@ -30,29 +32,80 @@ META_CATEGORIES: dict[str, list[str]] = {
 }
 
 
-def _build_alias_map() -> dict[str, str]:
-    """Build a reverse map from alias to canonical name."""
-    alias_map: dict[str, str] = {}
-    for canonical, aliases in ACTIVITY_ALIASES.items():
-        alias_map[canonical.lower()] = canonical
-        for alias in aliases:
-            alias_map[alias.lower()] = canonical
-    return alias_map
+def _normalize_str(s: str) -> str:
+    """Normalize unicode and strip whitespace for comparison."""
+    return unicodedata.normalize("NFKC", s).strip().lower()
 
 
-_ALIAS_MAP = _build_alias_map()
+def _similarity(a: str, b: str) -> float:
+    """Simple character-level similarity ratio between two strings.
+
+    Uses longest common subsequence ratio — no external dependencies.
+    """
+    na, nb = _normalize_str(a), _normalize_str(b)
+
+    # Exact match
+    if na == nb:
+        return 1.0
+
+    # Substring containment (e.g. "プログラミングと会話" contains "プログラミング")
+    if na in nb or nb in na:
+        shorter = min(len(na), len(nb))
+        longer = max(len(na), len(nb))
+        return shorter / longer if longer > 0 else 0.0
+
+    # LCS-based similarity
+    m, n = len(na), len(nb)
+    if m == 0 or n == 0:
+        return 0.0
+
+    # Space-efficient LCS length
+    prev = [0] * (n + 1)
+    for i in range(1, m + 1):
+        curr = [0] * (n + 1)
+        for j in range(1, n + 1):
+            if na[i - 1] == nb[j - 1]:
+                curr[j] = prev[j - 1] + 1
+            else:
+                curr[j] = max(prev[j], curr[j - 1])
+        prev = curr
+
+    lcs_len = prev[n]
+    return (2.0 * lcs_len) / (m + n)
 
 
 def normalize_activity(raw: str) -> str:
     """Normalize an activity name to its canonical form.
 
-    Returns the canonical category if a match is found, otherwise returns
-    the original string (allowing new categories to emerge).
+    Uses fuzzy matching to find the best canonical category.
+    If no good match is found (similarity < threshold), returns the
+    original string to allow new categories to emerge.
     """
     if not raw:
         return raw
-    key = raw.strip().lower()
-    return _ALIAS_MAP.get(key, raw.strip())
+
+    cleaned = raw.strip()
+    normalized = _normalize_str(cleaned)
+
+    # Exact match against canonical list
+    for canonical in CANONICAL_ACTIVITIES:
+        if _normalize_str(canonical) == normalized:
+            return canonical
+
+    # Fuzzy match — find best candidate
+    threshold = 0.5
+    best_score = 0.0
+    best_match = ""
+    for canonical in CANONICAL_ACTIVITIES:
+        score = _similarity(cleaned, canonical)
+        if score > best_score:
+            best_score = score
+            best_match = canonical
+
+    if best_score >= threshold:
+        return best_match
+
+    return cleaned
 
 
 def get_meta_category(activity: str) -> str:
@@ -69,4 +122,4 @@ def get_meta_category(activity: str) -> str:
 
 def get_canonical_categories() -> list[str]:
     """Return list of all canonical activity category names."""
-    return list(ACTIVITY_ALIASES.keys())
+    return list(CANONICAL_ACTIVITIES)
