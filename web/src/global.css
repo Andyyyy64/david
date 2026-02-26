@@ -203,6 +203,7 @@ pre {
 
 .summary-panel {
   flex: 1;
+  min-height: 0;
   background: var(--bg-surface);
   overflow-y: auto;
   display: flex;
@@ -443,6 +444,7 @@ pre {
   border-radius: var(--radius-sm);
   overflow: hidden;
   cursor: pointer;
+  max-width: 200px;
 }
 
 .detail-image-wrap:hover {
@@ -779,9 +781,8 @@ pre {
 /* ── Search Panel ── */
 
 .search-panel {
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--border);
 }
 
 .search-input-row {
@@ -812,11 +813,16 @@ pre {
   background: var(--accent-dim);
   border: none;
   color: var(--text-primary);
-  padding: var(--space-xs) var(--space-md);
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   border-radius: var(--radius-sm);
-  font-size: 12px;
   cursor: pointer;
   transition: background 0.15s;
+  flex-shrink: 0;
 }
 
 .search-btn:hover {
@@ -830,7 +836,7 @@ pre {
 
 .search-results {
   overflow-y: auto;
-  flex: 1;
+  max-height: 300px;
 }
 
 .search-results-count {
@@ -895,39 +901,6 @@ pre {
   overflow: hidden;
 }
 
-.left-panel-tabs {
-  display: flex;
-  border-bottom: 1px solid var(--border);
-  flex-shrink: 0;
-}
-
-.left-panel-tab {
-  flex: 1;
-  padding: var(--space-sm);
-  background: none;
-  border: none;
-  color: var(--text-secondary);
-  font-size: 12px;
-  font-family: var(--font-sans);
-  cursor: pointer;
-  transition: color 0.15s, background 0.15s;
-}
-
-.left-panel-tab:hover {
-  background: var(--bg-hover);
-}
-
-.left-panel-tab.active {
-  color: var(--accent);
-  box-shadow: inset 0 -2px 0 var(--accent);
-}
-
-.left-panel-content {
-  flex: 1;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-}
 
 /* ── Dashboard ── */
 

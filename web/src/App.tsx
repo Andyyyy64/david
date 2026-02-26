@@ -28,7 +28,6 @@ export default function App() {
   const [selectedFrame, setSelectedFrame] = useState<Frame | null>(null);
   const [stats, setStats] = useState<DayStats | null>(null);
   const [availableDates, setAvailableDates] = useState<string[]>([]);
-  const [leftTab, setLeftTab] = useState<'summaries' | 'search'>('summaries');
   const [showDashboard, setShowDashboard] = useState(false);
   const [mobilePanel, setMobilePanel] = useState<'timeline' | 'left' | 'detail'>('timeline');
   const isMobile = useIsMobile();
@@ -131,36 +130,17 @@ export default function App() {
       <div className="main-layout">
         {showLeft && (
           <div className={`left-panel ${isMobile ? 'left-panel--mobile' : ''}`}>
-            <div className="left-panel-tabs">
-              <button
-                className={`left-panel-tab ${leftTab === 'summaries' ? 'active' : ''}`}
-                onClick={() => setLeftTab('summaries')}
-              >
-                Summaries
-              </button>
-              <button
-                className={`left-panel-tab ${leftTab === 'search' ? 'active' : ''}`}
-                onClick={() => setLeftTab('search')}
-              >
-                Search
-              </button>
-            </div>
-            <div className="left-panel-content">
-              {leftTab === 'summaries' ? (
-                <SummaryPanel
-                  summaries={summaries}
-                  onTimeClick={(ts) => {
-                    const frame = frames.find((f) => f.timestamp >= ts);
-                    if (frame) handleSelectFrame(frame);
-                  }}
-                />
-              ) : (
-                <SearchPanel
-                  onSelectFrame={handleSelectFrame}
-                  onDateChange={setDate}
-                />
-              )}
-            </div>
+            <SearchPanel
+              onSelectFrame={handleSelectFrame}
+              onDateChange={setDate}
+            />
+            <SummaryPanel
+              summaries={summaries}
+              onTimeClick={(ts) => {
+                const frame = frames.find((f) => f.timestamp >= ts);
+                if (frame) handleSelectFrame(frame);
+              }}
+            />
           </div>
         )}
         {showTimeline && (
