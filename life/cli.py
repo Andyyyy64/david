@@ -462,10 +462,7 @@ def notify_test(ctx):
     if not config.notify.enabled:
         console.print("[yellow]Notifications are not enabled.[/yellow]")
         console.print("Add to life.toml:")
-        console.print("[dim]  [notify]")
-        console.print("  enabled = true")
-        console.print("  provider = \"discord\"  # or \"line\"")
-        console.print("  webhook_url = \"https://discord.com/api/webhooks/...\"[/dim]")
+        console.print("[dim]  \\[notify]\n  enabled = true\n  provider = \"discord\"  # or \"line\"\n  webhook_url = \"https://discord.com/api/webhooks/...\"[/dim]")
         return
 
     from life.notify import send_notification
