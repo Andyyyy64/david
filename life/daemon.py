@@ -11,6 +11,7 @@ from pathlib import Path
 
 import cv2
 
+from life.analysis.change import ChangeDetector
 from life.analysis.motion import MotionDetector
 from life.analysis.scene import SceneAnalyzer
 from life.analysis.transcribe import Transcriber
@@ -27,6 +28,8 @@ from life.notify import send_notification
 from life.storage.database import Database
 from life.storage.models import Event, Frame, SceneType, SCALES
 
+CHANGE_CHECK_INTERVAL = 1  # seconds between change checks
+
 log = logging.getLogger(__name__)
 
 
@@ -42,12 +45,17 @@ class Daemon:
         self._motion = MotionDetector(config.analysis.motion_threshold)
         self._scene = SceneAnalyzer(config.analysis.brightness_dark, config.analysis.brightness_bright)
         self._live = LiveServer(port=3002)
+        self._cam_lock = threading.Lock()  # protect cv2.VideoCapture across threads
         self._frame_count = 0
         self._last_scene: SceneType | None = None
         self._pending_audio: str | None = None  # audio from previous interval
         self._audio_thread: threading.Thread | None = None
-        self._burst_screen_paths: list[str] = []  # buffered burst screen captures
-        self._burst_lock = threading.Lock()
+        # Change-detection based capture buffers
+        self._screen_detector = ChangeDetector(threshold=0.10)
+        self._cam_detector = ChangeDetector(threshold=0.15)
+        self._extra_screen_paths: list[str] = []
+        self._extra_cam_paths: list[str] = []
+        self._capture_lock = threading.Lock()
 
         # Create LLM provider from config
         provider = create_provider(
@@ -82,40 +90,51 @@ class Daemon:
 
         self._running = True
         self._live.start()
+        self._start_live_thread()
         log.info("Daemon started (interval=%ds)", self._config.capture.interval_sec)
 
         try:
             while self._running:
                 self._tick()
-                # Between ticks: continuously feed live stream (~10fps)
-                # Also capture burst screenshots at 10s intervals
+                # Between ticks: check for screen and camera changes every second
                 end_time = time.time() + self._config.capture.interval_sec
-                next_burst_time = time.time() + 10  # first burst at +10s
-                burst_count = self._config.capture.screen_burst_count
-                with self._burst_lock:
-                    self._burst_screen_paths = []
-                burst_captured = 0
+                next_check = time.time() + CHANGE_CHECK_INTERVAL
+                with self._capture_lock:
+                    self._extra_screen_paths = []
+                    self._extra_cam_paths = []
+                self._screen_detector.reset()
+                self._cam_detector.reset()
                 while self._running and time.time() < end_time:
-                    # Burst screen capture at 10s intervals
-                    if burst_captured < burst_count - 1 and time.time() >= next_burst_time:
-                        self._capture_burst_screen()
-                        burst_captured += 1
-                        next_burst_time = time.time() + 10
-                    raw = self._camera.capture()
-                    if raw is not None:
-                        _, jpeg = cv2.imencode(
-                            ".jpg", raw, [cv2.IMWRITE_JPEG_QUALITY, 70]
-                        )
-                        self._live.update_frame(jpeg.tobytes())
-                    time.sleep(0.1)
+                    now_t = time.time()
+                    if now_t >= next_check:
+                        self._check_screen_change()
+                        self._check_cam_change()
+                        next_check = now_t + CHANGE_CHECK_INTERVAL
+                    time.sleep(0.2)
         except Exception:
             log.exception("Daemon crashed")
         finally:
+            self._running = False
             self._live.stop()
             self._camera.close()
             self._db.close()
             self._cleanup_pid()
             log.info("Daemon stopped")
+
+    def _start_live_thread(self) -> None:
+        """Run dedicated thread that feeds camera frames to the live server at ~30fps."""
+        def _feed():
+            while self._running:
+                with self._cam_lock:
+                    raw = self._camera.capture()
+                if raw is not None:
+                    _, jpeg = cv2.imencode(
+                        ".jpg", raw, [cv2.IMWRITE_JPEG_QUALITY, 70]
+                    )
+                    self._live.update_frame(jpeg.tobytes())
+                time.sleep(0.033)  # ~30fps
+        thread = threading.Thread(target=_feed, daemon=True, name="live-feed")
+        thread.start()
 
     def _start_audio_recording(self, now: datetime):
         """Start recording audio in a background thread for the current interval."""
@@ -142,25 +161,47 @@ class Daemon:
                 log.info("Transcribed: %s", transcription[:80])
         return audio_path, transcription
 
-    def _capture_burst_screen(self):
-        """Capture a burst screenshot in background thread."""
-        def _do_capture():
+    def _check_screen_change(self) -> None:
+        """Capture a screenshot and keep it only if the screen changed."""
+        def _do_check():
             path = self._screen.capture(datetime.now())
-            if path:
-                with self._burst_lock:
-                    self._burst_screen_paths.append(path)
-                log.debug("Burst screen captured: %s", path)
-        t = threading.Thread(target=_do_capture, daemon=True)
-        t.start()
+            if not path:
+                return
+            abs_path = self._config.data_dir / path
+            if self._screen_detector.is_changed_file(abs_path):
+                with self._capture_lock:
+                    self._extra_screen_paths.append(path)
+                    log.debug("Screen change detected (%d): %s",
+                              len(self._extra_screen_paths), path)
+            else:
+                # No change — delete the file
+                try:
+                    abs_path.unlink()
+                except OSError:
+                    pass
 
-    def _tick(self):
-        raw_frame = self._camera.capture()
-        if raw_frame is None:
+        threading.Thread(target=_do_check, daemon=True).start()
+
+    def _check_cam_change(self) -> None:
+        """Capture a camera frame and keep it only if the view changed."""
+        with self._cam_lock:
+            raw = self._camera.capture()
+        if raw is None:
             return
 
-        # Update live feed
-        _, jpeg = cv2.imencode(".jpg", raw_frame, [cv2.IMWRITE_JPEG_QUALITY, 70])
-        self._live.update_frame(jpeg.tobytes())
+        if self._cam_detector.is_changed(raw):
+            now = datetime.now()
+            rel_path = self._frame_store.save(raw, now)
+            with self._capture_lock:
+                self._extra_cam_paths.append(rel_path)
+                log.debug("Camera change detected (%d): %s",
+                          len(self._extra_cam_paths), rel_path)
+
+    def _tick(self):
+        with self._cam_lock:
+            raw_frame = self._camera.capture()
+        if raw_frame is None:
+            return
 
         now = datetime.now()
         self._frame_count += 1
@@ -185,10 +226,16 @@ class Daemon:
         scene_type = self._scene.classify(brightness)
         motion_score = self._motion.analyze(raw_frame)
 
-        # Collect burst screen paths from previous interval
-        with self._burst_lock:
-            burst_paths = list(self._burst_screen_paths)
-            self._burst_screen_paths = []
+        # Collect change-detected extra captures from previous interval
+        with self._capture_lock:
+            extra_screens = list(self._extra_screen_paths)
+            extra_cams = list(self._extra_cam_paths)
+            self._extra_screen_paths = []
+            self._extra_cam_paths = []
+
+        if extra_screens or extra_cams:
+            log.info("Change captures: %d screens, %d cams",
+                     len(extra_screens), len(extra_cams))
 
         # Record frame in DB
         frame = Frame(
@@ -200,7 +247,7 @@ class Daemon:
             brightness=brightness,
             motion_score=motion_score,
             scene_type=scene_type,
-            screen_extra_paths=",".join(burst_paths) if burst_paths else "",
+            screen_extra_paths=",".join(extra_screens) if extra_screens else "",
         )
         frame_id = self._db.insert_frame(frame)
         frame.id = frame_id
@@ -230,8 +277,12 @@ class Daemon:
             "yes" if audio_path else "no",
         )
 
-        # LLM frame analysis (every frame, with transcription context + burst screens)
-        description, activity = self._frame_analyzer.analyze(frame, burst_paths or None)
+        # LLM frame analysis (with change-detected extra captures)
+        all_extra_screens = extra_screens or None
+        all_extra_cams = extra_cams or None
+        description, activity = self._frame_analyzer.analyze(
+            frame, all_extra_screens, all_extra_cams,
+        )
         if description or activity:
             self._db.update_frame_analysis(frame_id, description, activity)
             log.info("Analysis: [%s] %s", activity, description[:80])

@@ -33,13 +33,17 @@ class FrameAnalyzer:
         self._db = db
 
     def analyze(
-        self, frame: Frame, extra_screen_paths: list[str] | None = None,
+        self,
+        frame: Frame,
+        extra_screen_paths: list[str] | None = None,
+        extra_cam_paths: list[str] | None = None,
     ) -> tuple[str, str]:
         """Analyze frame and return (description, activity).
 
         Args:
             frame: Frame to analyze (with path, screen_path, etc.)
-            extra_screen_paths: Additional screen capture paths (burst captures)
+            extra_screen_paths: Change-detected extra screen captures
+            extra_cam_paths: Change-detected extra camera captures
 
         Returns:
             Tuple of (description, activity_category)
@@ -54,13 +58,20 @@ class FrameAnalyzer:
             log.warning("No images to analyze")
             return "", ""
 
-        # Resolve extra screen paths
+        # Resolve extra paths
         extra_screens: list[Path] = []
         if extra_screen_paths:
             for sp in extra_screen_paths:
                 p = (self._data_dir / sp).resolve()
                 if p.exists():
                     extra_screens.append(p)
+
+        extra_cams: list[Path] = []
+        if extra_cam_paths:
+            for cp in extra_cam_paths:
+                p = (self._data_dir / cp).resolve()
+                if p.exists():
+                    extra_cams.append(p)
 
         context = _load_context(self._data_dir)
         parts: list[str] = []
@@ -76,50 +87,55 @@ class FrameAnalyzer:
         image_paths: list[Path] = []
         img_idx = 1
 
+        # Camera images (main + change-detected)
+        cam_labels: list[str] = []
         if has_cam:
             image_paths.append(cam_path)
-            cam_label = f"画像{img_idx}: ウェブカメラ映像"
+            cam_labels.append(f"画像{img_idx}: ウェブカメラ（メイン）")
             img_idx += 1
-        else:
-            cam_label = ""
+        for i, ecp in enumerate(extra_cams):
+            image_paths.append(ecp)
+            cam_labels.append(f"画像{img_idx}: ウェブカメラ（変化検出{i+1}）")
+            img_idx += 1
+        cam_desc = "\n".join(cam_labels) if cam_labels else ""
 
-        if has_screen or extra_screens:
-            screen_labels: list[str] = []
-            if has_screen:
-                image_paths.append(screen_path)
-                screen_labels.append(f"画像{img_idx}: PC画面キャプチャ（0秒時点）")
-                img_idx += 1
-            for i, esp in enumerate(extra_screens):
-                image_paths.append(esp)
-                offset = (i + 1) * 10
-                screen_labels.append(f"画像{img_idx}: PC画面キャプチャ（{offset}秒時点）")
-                img_idx += 1
-            screen_desc = "\n".join(screen_labels)
-        else:
-            screen_desc = ""
+        # Screen images (main + change-detected)
+        screen_labels: list[str] = []
+        if has_screen:
+            image_paths.append(screen_path)
+            screen_labels.append(f"画像{img_idx}: PC画面（メイン）")
+            img_idx += 1
+        for i, esp in enumerate(extra_screens):
+            image_paths.append(esp)
+            screen_labels.append(f"画像{img_idx}: PC画面（変化検出{i+1}）")
+            img_idx += 1
+        screen_desc = "\n".join(screen_labels) if screen_labels else ""
 
         total_images = len(image_paths)
         if total_images == 0:
             return "", ""
 
         parts.append(f"以下の{total_images}つの画像を分析してください。")
-        if cam_label:
-            parts.append(cam_label)
+        if cam_desc:
+            parts.append(cam_desc)
         if screen_desc:
             parts.append(screen_desc)
 
-        if extra_screens:
-            parts.append(
-                "PC画面キャプチャが複数枚あります。時系列で画面の変化を読み取り、"
-                "この期間中に何をしていたか把握してください。"
+        change_note = ""
+        if extra_screens or extra_cams:
+            change_note = (
+                "「変化検出」の画像は、この30秒間に画面やカメラに大きな変化があった瞬間のスナップショットです。"
+                "変化が多いほど、活動が活発だったことを意味します。"
+                "時系列で変化を読み取り、この期間中の活動を把握してください。"
             )
+            parts.append(change_note)
 
-        if has_cam and (has_screen or extra_screens):
+        if (has_cam or extra_cams) and (has_screen or extra_screens):
             parts.append(
                 "ウェブカメラからは人物の物理的な状態を、画面キャプチャからはPC上での活動内容を読み取り、"
                 "この人が今何をしているか1-2文で日本語で説明してください。"
             )
-        elif has_cam:
+        elif has_cam or extra_cams:
             parts.append(
                 "写っているものを1-2文で簡潔に日本語で説明してください。"
             )
