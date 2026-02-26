@@ -390,6 +390,38 @@ def events(ctx, target_date: str | None):
 
 @cli.command()
 @click.argument("target_date", required=False)
+@click.pass_context
+def report(ctx, target_date: str | None):
+    """Generate daily diary report."""
+    config: Config = ctx.obj["config"]
+    d = _parse_date(target_date) if target_date else date.today()
+
+    from life.llm import create_provider
+    from life.report import ReportGenerator
+    from life.storage.database import Database
+
+    if not config.db_path.exists():
+        console.print("[dim]No data yet[/dim]")
+        return
+
+    provider = create_provider(
+        config.llm.provider,
+        claude_model=config.llm.claude_model,
+        gemini_model=config.llm.gemini_model,
+    )
+    db = Database(config.db_path)
+    gen = ReportGenerator(provider, db, config.data_dir)
+    rpt = gen.generate(d)
+    if rpt:
+        console.print(Panel(rpt.content, title=f"Daily Report — {d.isoformat()}", border_style="blue"))
+        console.print(f"[dim]{rpt.frame_count} frames, focus {rpt.focus_pct:.0f}%[/dim]")
+    else:
+        console.print(f"[yellow]Could not generate report for {d.isoformat()}[/yellow]")
+    db.close()
+
+
+@cli.command()
+@click.argument("target_date", required=False)
 @click.option("--json", "as_json", is_flag=True, help="Output raw JSON")
 @click.pass_context
 def review(ctx, target_date: str | None, as_json: bool):

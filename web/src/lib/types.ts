@@ -77,6 +77,15 @@ export interface ActivityInfo {
   frameCount: number;
 }
 
+export interface Report {
+  id: number;
+  date: string;
+  content: string;
+  generated_at: string;
+  frame_count: number;
+  focus_pct: number;
+}
+
 export interface RangeDay {
   date: string;
   frameCount: number;

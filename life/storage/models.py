@@ -54,3 +54,13 @@ class Summary:
     scale: str = ""  # 10m, 30m, 1h, 6h, 12h, 24h
     content: str = ""
     frame_count: int = 0
+
+
+@dataclass
+class Report:
+    id: int | None = None
+    date: str = ""  # YYYY-MM-DD
+    content: str = ""
+    generated_at: datetime = field(default_factory=datetime.now)
+    frame_count: int = 0
+    focus_pct: float = 0.0

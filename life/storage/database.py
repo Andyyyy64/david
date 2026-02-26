@@ -4,7 +4,7 @@ import sqlite3
 from datetime import datetime, date, timedelta
 from pathlib import Path
 
-from .models import Frame, Event, Summary, SceneType
+from .models import Frame, Event, Summary, Report, SceneType
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS frames (
@@ -36,6 +36,15 @@ CREATE TABLE IF NOT EXISTS summaries (
     scale TEXT NOT NULL,
     content TEXT DEFAULT '',
     frame_count INTEGER DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS reports (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    date TEXT NOT NULL UNIQUE,
+    content TEXT DEFAULT '',
+    generated_at TEXT NOT NULL,
+    frame_count INTEGER DEFAULT 0,
+    focus_pct REAL DEFAULT 0
 );
 
 CREATE INDEX IF NOT EXISTS idx_frames_timestamp ON frames(timestamp);
@@ -355,6 +364,35 @@ class Database:
         selected.sort(key=lambda f: f.timestamp)
         return selected[:max_frames]
 
+    # --- Reports ---
+
+    def insert_report(self, report: Report) -> int:
+        cur = self._conn.execute(
+            """INSERT OR REPLACE INTO reports (date, content, generated_at, frame_count, focus_pct)
+               VALUES (?, ?, ?, ?, ?)""",
+            (
+                report.date,
+                report.content,
+                report.generated_at.isoformat(),
+                report.frame_count,
+                report.focus_pct,
+            ),
+        )
+        self._conn.commit()
+        return cur.lastrowid  # type: ignore[return-value]
+
+    def get_report(self, d: date) -> Report | None:
+        row = self._conn.execute(
+            "SELECT * FROM reports WHERE date=?", (d.isoformat(),),
+        ).fetchone()
+        return self._row_to_report(row) if row else None
+
+    def get_reports(self, limit: int = 30) -> list[Report]:
+        rows = self._conn.execute(
+            "SELECT * FROM reports ORDER BY date DESC LIMIT ?", (limit,),
+        ).fetchall()
+        return [self._row_to_report(r) for r in rows]
+
     # --- Row converters ---
 
     @staticmethod
@@ -392,4 +430,15 @@ class Database:
             scale=row["scale"],
             content=row["content"],
             frame_count=row["frame_count"],
+        )
+
+    @staticmethod
+    def _row_to_report(row: sqlite3.Row) -> Report:
+        return Report(
+            id=row["id"],
+            date=row["date"],
+            content=row["content"],
+            generated_at=datetime.fromisoformat(row["generated_at"]),
+            frame_count=row["frame_count"],
+            focus_pct=row["focus_pct"],
         )

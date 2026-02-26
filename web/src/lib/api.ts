@@ -1,4 +1,4 @@
-import type { Frame, Event, Summary, DayStats, ActivityStats, SearchResults, Session, ActivityInfo, RangeStats } from './types';
+import type { Frame, Event, Summary, DayStats, ActivityStats, SearchResults, Session, ActivityInfo, RangeStats, Report } from './types';
 
 const BASE = '/api';
 
@@ -28,6 +28,10 @@ export const api = {
     range: (from: string, to: string) => fetchJson<RangeStats>(`/stats/range?from=${from}&to=${to}`),
   },
   sessions: (date: string) => fetchJson<Session[]>(`/sessions?date=${date}`),
+  reports: {
+    get: (date: string) => fetchJson<Report>(`/reports?date=${date}`),
+    list: () => fetchJson<Report[]>('/reports'),
+  },
   activities: {
     list: () => fetchJson<ActivityInfo[]>('/activities'),
   },

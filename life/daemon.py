@@ -15,6 +15,7 @@ from life.analysis.motion import MotionDetector
 from life.analysis.scene import SceneAnalyzer
 from life.analysis.transcribe import Transcriber
 from life.analyzer import FrameAnalyzer, SummaryGenerator
+from life.report import ReportGenerator
 from life.capture.audio import AudioCapture
 from life.capture.camera import Camera
 from life.capture.frame_store import FrameStore
@@ -60,11 +61,13 @@ class Daemon:
         )
         self._frame_analyzer = FrameAnalyzer(provider, config.data_dir, self._db)
         self._summary_gen = SummaryGenerator(provider, self._db, config.data_dir)
+        self._report_gen = ReportGenerator(provider, self._db, config.data_dir)
 
         # Track last summary time per scale
         # Initialize to now so we wait the full interval before first generation
         now = datetime.now()
         self._last_summary: dict[str, datetime] = {scale: now for scale in SCALES}
+        self._last_report_date: str = now.strftime("%Y-%m-%d")
 
     def run(self):
         self._write_pid()
@@ -234,6 +237,16 @@ class Daemon:
 
         # Multi-scale summaries
         self._check_summaries(now)
+
+        # Auto-generate daily report when day changes
+        today_str = now.strftime("%Y-%m-%d")
+        if today_str != self._last_report_date:
+            yesterday = (now - timedelta(days=1)).date()
+            existing = self._db.get_report(yesterday)
+            if not existing:
+                log.info("Generating daily report for %s...", yesterday)
+                self._report_gen.generate(yesterday)
+            self._last_report_date = today_str
 
     def _check_summaries(self, now: datetime):
         generators = {
