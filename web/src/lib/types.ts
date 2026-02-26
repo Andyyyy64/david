@@ -76,3 +76,22 @@ export interface ActivityInfo {
   metaCategory: string;
   frameCount: number;
 }
+
+export interface RangeDay {
+  date: string;
+  frameCount: number;
+  totalSec: number;
+  activities: Record<string, number>;
+  metaCategories: Record<string, number>;
+}
+
+export interface RangeStats {
+  from: string;
+  to: string;
+  frameDuration: number;
+  totalFrames: number;
+  totalSec: number;
+  days: RangeDay[];
+  activityTotals: Record<string, number>;
+  metaTotals: Record<string, number>;
+}
