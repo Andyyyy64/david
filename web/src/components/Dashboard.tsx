@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { api } from '../lib/api';
 import { formatDate } from '../lib/date';
-import type { RangeStats, Session, ActivityStats } from '../lib/types';
+import type { RangeStats, Session, ActivityStats, AppStat } from '../lib/types';
 
 interface Props {
   date: string;
@@ -198,12 +198,14 @@ export function Dashboard({ date, onClose }: Props) {
   const [rangeStats, setRangeStats] = useState<RangeStats | null>(null);
   const [sessions, setSessions] = useState<Session[]>([]);
   const [dayActivities, setDayActivities] = useState<ActivityStats | null>(null);
+  const [appStats, setAppStats] = useState<AppStat[]>([]);
 
   useEffect(() => {
     const [weekFrom, weekTo] = getWeekRange(date);
     api.stats.range(weekFrom, weekTo).then(setRangeStats).catch(console.error);
     api.sessions(date).then(setSessions).catch(console.error);
     api.stats.activities(date).then(setDayActivities).catch(console.error);
+    api.stats.apps(date).then(setAppStats).catch(console.error);
   }, [date]);
 
   // Today's meta-category pie data
@@ -222,6 +224,9 @@ export function Dashboard({ date, onClose }: Props) {
     color: `hsl(${(i * 45) % 360}, 55%, 55%)`,
   }));
   const maxActivitySec = Math.max(...activityData.map((a) => a.durationSec), 1);
+
+  // App usage data
+  const maxAppSec = Math.max(...appStats.map((a) => a.durationSec), 1);
 
   // Focus time summary (exclude idle frames from denominator)
   const totalFrames = rangeStats?.days.find((d) => d.date === date)?.frameCount || 0;
@@ -272,6 +277,24 @@ export function Dashboard({ date, onClose }: Props) {
               ))}
             </div>
           </div>
+
+          {/* App usage */}
+          {appStats.length > 0 && (
+            <div className="dashboard-card">
+              <div className="dashboard-card-title">App Usage</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                {appStats.slice(0, 10).map((a, i) => (
+                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12 }}>
+                    <span style={{ minWidth: 80, color: 'var(--text-secondary)' }} title={a.titleSample}>{a.process}</span>
+                    <div style={{ flex: 1, height: 12, background: 'var(--bg-elevated)', borderRadius: 2, overflow: 'hidden' }}>
+                      <div style={{ width: `${(a.durationSec / maxAppSec) * 100}%`, height: '100%', background: `hsl(${(i * 35 + 200) % 360}, 50%, 55%)`, borderRadius: 2 }} />
+                    </div>
+                    <span style={{ fontFamily: 'var(--font-mono)', minWidth: 40, textAlign: 'right' }}>{formatDuration(a.durationSec)}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Weekly chart */}
           <div className="dashboard-card">

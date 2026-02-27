@@ -161,6 +161,15 @@ class FrameAnalyzer:
                 "表示されている内容を1-2文で簡潔に日本語で説明してください。"
             )
 
+        # Foreground window info
+        if frame.foreground_window:
+            fw_proc, _, fw_title = frame.foreground_window.partition("|")
+            if fw_proc:
+                parts.append(
+                    f"\n【アクティブウィンドウ】プロセス: {fw_proc} | タイトル: {fw_title}\n"
+                    "この情報も踏まえてアクティビティを判定してください。"
+                )
+
         if frame.transcription:
             parts.append(
                 f"\nまた、この30秒間に以下の音声が録音されています:\n"

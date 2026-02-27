@@ -22,6 +22,7 @@ from life.capture.audio import AudioCapture
 from life.capture.camera import Camera
 from life.capture.frame_store import FrameStore
 from life.capture.screen import ScreenCapture
+from life.capture.window import WindowMonitor
 from life.config import Config
 from life.live import LiveServer
 from life.llm import create_provider
@@ -41,6 +42,7 @@ class Daemon:
         self._camera = Camera(config.capture)
         self._frame_store = FrameStore(config.data_dir, config.capture.jpeg_quality)
         self._screen = ScreenCapture(config.data_dir)
+        self._window = WindowMonitor(config.db_path)
         self._audio = AudioCapture(config.data_dir, config.capture.audio_device, config.capture.audio_sample_rate)
         self._db = Database(config.db_path)
         self._motion = MotionDetector(config.analysis.motion_threshold)
@@ -99,6 +101,7 @@ class Daemon:
 
         self._running = True
         self._live.start()
+        self._window.start()
         self._start_live_thread()
         log.info("Daemon started (interval=%ds)", self._config.capture.interval_sec)
 
@@ -124,6 +127,7 @@ class Daemon:
             log.exception("Daemon crashed")
         finally:
             self._running = False
+            self._window.stop()
             self._live.stop()
             self._camera.close()
             self._db.close()
@@ -221,9 +225,11 @@ class Daemon:
         # Start recording audio for the next interval (runs during processing + sleep)
         self._start_audio_recording(now)
 
-        # Save webcam frame + screen capture
+        # Save webcam frame + screen capture + window info
         rel_path = self._frame_store.save(raw_frame, now)
         screen_path = self._screen.capture(now) or ""
+        proc_name, win_title = self._window.current()
+        foreground_window = f"{proc_name}|{win_title}" if proc_name else ""
 
         # Write latest frame for live web feed
         live_dir = self._config.data_dir / "live"
@@ -273,6 +279,7 @@ class Daemon:
             motion_score=motion_score,
             scene_type=scene_type,
             screen_extra_paths=",".join(extra_screens) if extra_screens else "",
+            foreground_window=foreground_window,
         )
         frame_id = self._db.insert_frame(frame)
         frame.id = frame_id
@@ -297,10 +304,11 @@ class Daemon:
             ))
 
         log.info(
-            "frame=%d bright=%.0f motion=%.3f scene=%s presence=%s audio=%s",
+            "frame=%d bright=%.0f motion=%.3f scene=%s presence=%s audio=%s window=%s",
             self._frame_count, brightness, motion_score, scene_type.value,
             self._presence.state.value if self._presence_enabled else "n/a",
             "yes" if audio_path else "no",
+            proc_name or "n/a",
         )
 
         # LLM frame analysis (with change-detected extra captures + presence hint)

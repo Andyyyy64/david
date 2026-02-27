@@ -118,6 +118,25 @@ export function DetailPanel({ frame }: Props) {
       {/* メタデータ */}
       <DetailSection title="メタデータ">
         <div className="detail-meta">
+          {frame.foreground_window && (() => {
+            const sep = frame.foreground_window.indexOf('|');
+            const proc = sep >= 0 ? frame.foreground_window.slice(0, sep) : frame.foreground_window;
+            const title = sep >= 0 ? frame.foreground_window.slice(sep + 1) : '';
+            return (
+              <>
+                <div className="meta-row">
+                  <span className="meta-key">アプリ</span>
+                  <span className="meta-value">{proc}</span>
+                </div>
+                {title && (
+                  <div className="meta-row">
+                    <span className="meta-key">ウィンドウ</span>
+                    <span className="meta-value" style={{ fontSize: 11 }}>{title}</span>
+                  </div>
+                )}
+              </>
+            );
+          })()}
           <div className="meta-row">
             <span className="meta-key">シーン</span>
             <span className={`meta-value scene-${frame.scene_type}`}>{frame.scene_type}</span>

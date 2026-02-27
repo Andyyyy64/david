@@ -116,6 +116,75 @@ app.get('/activities', (c) => {
   return c.json({ activities, hourly });
 });
 
+// GET /api/stats/apps?date=YYYY-MM-DD
+// Uses window_events table for precise event-driven app usage tracking
+app.get('/apps', (c) => {
+  const date = c.req.query('date');
+  if (!date) return c.json({ error: 'date required' }, 400);
+
+  const db = getDb();
+  const start = `${date}T00:00:00`;
+  const end = `${date}T23:59:59`;
+
+  // Check if window_events table exists
+  const tableExists = db
+    .prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='window_events'")
+    .get();
+  if (!tableExists) return c.json([]);
+
+  // Get events with next timestamp via window function for duration calculation
+  const rows = db
+    .prepare(
+      `SELECT timestamp, process_name, window_title,
+              LEAD(timestamp, 1, ?) OVER (ORDER BY timestamp) as next_ts
+       FROM window_events
+       WHERE timestamp BETWEEN ? AND ?
+       ORDER BY timestamp`,
+    )
+    .all(end, start, end) as {
+      timestamp: string; process_name: string; window_title: string; next_ts: string;
+    }[];
+
+  // Aggregate by process name
+  const byProcess = new Map<string, {
+    durationSec: number; titleSample: string; maxDuration: number; switchCount: number;
+  }>();
+
+  for (const row of rows) {
+    if (!row.process_name) continue;
+    const duration = (new Date(row.next_ts).getTime() - new Date(row.timestamp).getTime()) / 1000;
+    if (duration <= 0 || duration > 86400) continue;
+
+    const existing = byProcess.get(row.process_name);
+    if (existing) {
+      existing.durationSec += duration;
+      existing.switchCount += 1;
+      if (duration > existing.maxDuration) {
+        existing.titleSample = row.window_title;
+        existing.maxDuration = duration;
+      }
+    } else {
+      byProcess.set(row.process_name, {
+        durationSec: duration,
+        titleSample: row.window_title,
+        maxDuration: duration,
+        switchCount: 1,
+      });
+    }
+  }
+
+  const apps = Array.from(byProcess.entries())
+    .map(([process, data]) => ({
+      process,
+      titleSample: data.titleSample,
+      durationSec: Math.round(data.durationSec),
+      switchCount: data.switchCount,
+    }))
+    .sort((a, b) => b.durationSec - a.durationSec);
+
+  return c.json(apps);
+});
+
 // GET /api/stats/dates
 app.get('/dates', (c) => {
   const db = getDb();

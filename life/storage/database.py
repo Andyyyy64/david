@@ -55,7 +55,7 @@ CREATE INDEX IF NOT EXISTS idx_summaries_scale ON summaries(scale);
 
 MIGRATE_FTS = """
 CREATE VIRTUAL TABLE IF NOT EXISTS frames_fts USING fts5(
-    claude_description, transcription, activity,
+    claude_description, transcription, activity, foreground_window,
     content='frames', content_rowid='id',
     tokenize='trigram'
 );
@@ -116,11 +116,39 @@ class Database:
         if "screen_extra_paths" not in cols:
             self._conn.execute("ALTER TABLE frames ADD COLUMN screen_extra_paths TEXT DEFAULT ''")
             self._conn.commit()
+        if "foreground_window" not in cols:
+            self._conn.execute("ALTER TABLE frames ADD COLUMN foreground_window TEXT DEFAULT ''")
+            self._conn.commit()
         # Ensure summaries table exists
         self._conn.executescript(MIGRATE_SUMMARIES)
-        # FTS tables
-        self._conn.executescript(MIGRATE_FTS)
+        # Window events table for precise app usage tracking
+        self._conn.executescript("""
+            CREATE TABLE IF NOT EXISTS window_events (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                timestamp TEXT NOT NULL,
+                process_name TEXT NOT NULL,
+                window_title TEXT DEFAULT ''
+            );
+            CREATE INDEX IF NOT EXISTS idx_window_events_timestamp ON window_events(timestamp);
+        """)
+        # FTS tables — recreate if schema changed (e.g. new columns added)
+        self._ensure_fts()
         self._rebuild_fts_if_needed()
+
+    def _ensure_fts(self):
+        """Create FTS tables, recreating if schema changed."""
+        # Check if frames_fts exists and has the expected columns
+        try:
+            row = self._conn.execute(
+                "SELECT sql FROM sqlite_master WHERE type='table' AND name='frames_fts'"
+            ).fetchone()
+            if row and "foreground_window" not in (row["sql"] or ""):
+                # Schema changed — drop and recreate
+                self._conn.execute("DROP TABLE IF EXISTS frames_fts")
+                self._conn.commit()
+        except Exception:
+            pass
+        self._conn.executescript(MIGRATE_FTS)
 
     def _rebuild_fts_if_needed(self):
         """Rebuild FTS indexes if they are empty but source tables have data."""
@@ -140,7 +168,7 @@ class Database:
     def _sync_frame_fts(self, frame_id: int, is_update: bool = False):
         """Sync a single frame to FTS index."""
         row = self._conn.execute(
-            "SELECT claude_description, transcription, activity FROM frames WHERE id=?",
+            "SELECT claude_description, transcription, activity, foreground_window FROM frames WHERE id=?",
             (frame_id,),
         ).fetchone()
         if row:
@@ -148,15 +176,15 @@ class Database:
                 # Delete old entry before re-inserting
                 try:
                     self._conn.execute(
-                        "INSERT INTO frames_fts(frames_fts, rowid, claude_description, transcription, activity) "
-                        "VALUES('delete', ?, ?, ?, ?)",
-                        (frame_id, row["claude_description"] or "", row["transcription"] or "", row["activity"] or ""),
+                        "INSERT INTO frames_fts(frames_fts, rowid, claude_description, transcription, activity, foreground_window) "
+                        "VALUES('delete', ?, ?, ?, ?, ?)",
+                        (frame_id, row["claude_description"] or "", row["transcription"] or "", row["activity"] or "", row["foreground_window"] or ""),
                     )
                 except Exception:
                     pass
             self._conn.execute(
-                "INSERT INTO frames_fts(rowid, claude_description, transcription, activity) VALUES(?, ?, ?, ?)",
-                (frame_id, row["claude_description"] or "", row["transcription"] or "", row["activity"] or ""),
+                "INSERT INTO frames_fts(rowid, claude_description, transcription, activity, foreground_window) VALUES(?, ?, ?, ?, ?)",
+                (frame_id, row["claude_description"] or "", row["transcription"] or "", row["activity"] or "", row["foreground_window"] or ""),
             )
 
     def _sync_summary_fts(self, summary_id: int):
@@ -178,8 +206,9 @@ class Database:
     def insert_frame(self, frame: Frame) -> int:
         cur = self._conn.execute(
             """INSERT INTO frames (timestamp, path, screen_path, audio_path, transcription,
-               brightness, motion_score, scene_type, claude_description, activity, screen_extra_paths)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+               brightness, motion_score, scene_type, claude_description, activity,
+               screen_extra_paths, foreground_window)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (
                 frame.timestamp.isoformat(),
                 frame.path,
@@ -192,6 +221,7 @@ class Database:
                 frame.claude_description,
                 frame.activity,
                 frame.screen_extra_paths,
+                frame.foreground_window,
             ),
         )
         self._conn.commit()
@@ -421,6 +451,7 @@ class Database:
             claude_description=row["claude_description"] or "",
             activity=row["activity"] or "",
             screen_extra_paths=row["screen_extra_paths"] or "",
+            foreground_window=row["foreground_window"] or "",
         )
 
     @staticmethod

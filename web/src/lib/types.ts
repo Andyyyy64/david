@@ -11,6 +11,14 @@ export interface Frame {
   claude_description: string;
   activity: string;
   screen_extra_paths: string;
+  foreground_window: string;
+}
+
+export interface AppStat {
+  process: string;
+  titleSample: string;
+  durationSec: number;
+  switchCount: number;
 }
 
 export interface Event {
