@@ -321,28 +321,28 @@ class SummaryGenerator:
         subs = self._db.get_summaries_since(since, "10m")
         if not subs:
             return None
-        return self._aggregate(now, "30m", subs)
+        return self._aggregate(now, "30m", subs, since)
 
     def generate_1h(self, now: datetime) -> Summary | None:
         since = now - timedelta(hours=1)
         subs = self._db.get_summaries_since(since, "30m")
         if not subs:
             return None
-        return self._aggregate(now, "1h", subs)
+        return self._aggregate(now, "1h", subs, since)
 
     def generate_6h(self, now: datetime) -> Summary | None:
         since = now - timedelta(hours=6)
         subs = self._db.get_summaries_since(since, "1h")
         if not subs:
             return None
-        return self._aggregate(now, "6h", subs)
+        return self._aggregate(now, "6h", subs, since)
 
     def generate_12h(self, now: datetime) -> Summary | None:
         since = now - timedelta(hours=12)
         subs = self._db.get_summaries_since(since, "6h")
         if not subs:
             return None
-        return self._aggregate(now, "12h", subs)
+        return self._aggregate(now, "12h", subs, since)
 
     def generate_24h(self, now: datetime) -> Summary | None:
         since = now - timedelta(hours=24)
@@ -360,6 +360,16 @@ class SummaryGenerator:
                 if p.exists():
                     image_paths.append(p.resolve())
 
+        # Collect transcriptions
+        transcriptions = self._collect_transcriptions(since)
+        audio_section = ""
+        if transcriptions:
+            audio_section = (
+                "\n## この期間の音声書き起こし（原文）\n"
+                f"{transcriptions}\n\n"
+                "上記の音声内容も踏まえて分析してください。\n"
+            )
+
         ctx = self._time_context(now, subs)
         sub_text = self._format_summaries(subs)
         prompt = (
@@ -368,6 +378,7 @@ class SummaryGenerator:
             f"{ctx}\n"
             "以下はこの期間の活動サマリーです。\n\n"
             f"{sub_text}\n\n"
+            f"{audio_section}"
             "上記のデータ範囲に基づいて、生活パターンを分析し以下を日本語で出力してください:\n"
             "1. 実際の観測時間内で何が起きたかの自然な要約\n"
             "2. 活動パターン（集中作業の時間帯、休憩、離席など）\n"
@@ -389,17 +400,42 @@ class SummaryGenerator:
         summary.id = self._db.insert_summary(summary)
         return summary
 
+    def _collect_transcriptions(self, since: datetime) -> str:
+        """Collect all transcriptions from frames in the time range."""
+        frames = self._db.get_frames_since(since)
+        lines = []
+        for f in frames:
+            if f.transcription:
+                ts = f.timestamp.strftime("%H:%M:%S")
+                lines.append(f"  [{ts}] 「{f.transcription}」")
+        return "\n".join(lines)
+
     def _aggregate(
         self, now: datetime, scale: str, subs: list[Summary],
+        since: datetime | None = None,
     ) -> Summary | None:
         ctx = self._time_context(now, subs)
         sub_text = self._format_summaries(subs)
+
+        # Collect raw transcriptions from this time range
+        audio_section = ""
+        if since:
+            transcriptions = self._collect_transcriptions(since)
+            if transcriptions:
+                audio_section = (
+                    "\n## この期間の音声書き起こし（原文）\n"
+                    f"{transcriptions}\n\n"
+                    "上記の音声内容も踏まえて要約してください。"
+                    "音声の内容はそのまま引用するか、正確に言い換えてください。\n"
+                )
+
         prompt = (
             f"{self._context_prefix()}"
             f"{self._GROUND_RULE}"
             f"{ctx}\n"
             "以下はこの期間の活動記録です。\n\n"
             f"{sub_text}\n\n"
+            f"{audio_section}"
             "上記の記録だけに基づいて、活動パターンを2-3文で日本語で要約してください。"
             "記録にない会話内容や行動を創作しないでください。要約だけを出力してください。"
         )
