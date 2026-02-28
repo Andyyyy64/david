@@ -66,6 +66,6 @@ app.get('/media/*', (c) => {
 app.use('/*', serveStatic({ root: './dist' }));
 
 const port = parseInt(process.env.PORT || '3001');
-console.log(`life.ai server running on http://localhost:${port}`);
+console.log(`homelife.ai server running on http://localhost:${port}`);
 console.log(`Data directory: ${DATA_DIR}`);
 serve({ fetch: app.fetch, port });

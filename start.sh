@@ -1,5 +1,5 @@
 #!/bin/bash
-# Start all life.ai services: daemon, web server
+# Start all homelife.ai services: daemon, web server
 # Usage: ./start.sh
 
 set -e

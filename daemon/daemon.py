@@ -360,7 +360,7 @@ class Daemon:
 
     def _send_report_notification(self, report_date, report):
         """Send daily report via configured notification channel."""
-        title = f"life.ai Daily Report — {report_date.isoformat()}"
+        title = f"homelife.ai Daily Report — {report_date.isoformat()}"
         body = f"{report.content}\n\n{report.frame_count} frames | Focus {report.focus_pct:.0f}%"
         send_notification(self._config.notify, title, body)
 

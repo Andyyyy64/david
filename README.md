@@ -1,4 +1,4 @@
-# life.ai
+# homelife.ai
 
 A personal AI observer that automatically records your daily life and enables reflection and pattern discovery.
 

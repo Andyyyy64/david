@@ -1,5 +1,5 @@
 [project]
-name = "life-ai"
+name = "homelife-ai"
 version = "0.1.0"
 description = "Personal life observer - camera-based daily activity tracker and summarizer"
 authors = [

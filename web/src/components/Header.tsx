@@ -24,7 +24,7 @@ export function Header({ date, onDateChange, availableDates, frameCount, onDashb
   return (
     <header className="header">
       <div className="header-left">
-        <h1 className="header-title">life.ai</h1>
+        <h1 className="header-title">homelife.ai</h1>
         <span className="header-count">{frameCount} frames</span>
         <button className="dashboard-btn" onClick={onDashboardClick}>
           Dashboard
