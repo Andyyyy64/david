@@ -57,7 +57,7 @@ def start(ctx, background: bool):
 
     if background:
         proc = subprocess.Popen(
-            [sys.executable, "-m", "life", "start"],
+            [sys.executable, "-m", "daemon", "start"],
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
             start_new_session=True,
