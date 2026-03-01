@@ -37,6 +37,7 @@ class Frame:
     activity: str = ""
     screen_extra_paths: str = ""  # comma-separated extra screen paths
     foreground_window: str = ""  # "process_name|window_title"
+    pose_data: str = ""  # JSON from PoseResult
 
 
 @dataclass

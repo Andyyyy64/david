@@ -41,6 +41,7 @@ class FrameAnalyzer:
         extra_screen_paths: list[str] | None = None,
         extra_cam_paths: list[str] | None = None,
         has_face: bool | None = None,
+        pose_data: str = "",
     ) -> tuple[str, str]:
         """Analyze frame and return (description, activity).
 
@@ -49,6 +50,7 @@ class FrameAnalyzer:
             extra_screen_paths: Change-detected extra screen captures
             extra_cam_paths: Change-detected extra camera captures
             has_face: Face detection result (True/False/None if disabled)
+            pose_data: JSON string from PoseResult
 
         Returns:
             Tuple of (description, activity_category)
@@ -212,6 +214,17 @@ class FrameAnalyzer:
                 f"「{frame.transcription}」\n"
                 "映像と音声の両方を踏まえて説明してください。"
             )
+
+        # Pose detection hint
+        if pose_data:
+            from daemon.analysis.pose import PoseResult
+            pose_result = PoseResult.from_json(pose_data)
+            hint = pose_result.to_prompt_hint()
+            if hint:
+                parts.append(
+                    f"\n【姿勢検出】{hint}\n"
+                    "この姿勢情報も踏まえて、ユーザーの活動状態や集中度を判定してください。"
+                )
 
         # Presence detection hint
         if has_face is not None:
