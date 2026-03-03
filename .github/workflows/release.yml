@@ -35,7 +35,7 @@ jobs:
 
       - name: Build Mac DMG (${{ matrix.arch }})
         working-directory: web
-        run: npx electron-builder --mac --arch ${{ matrix.arch }} --publish never
+        run: npx electron-builder --mac --${{ matrix.arch }} --publish never
 
       - name: Upload DMG
         uses: actions/upload-artifact@v4
