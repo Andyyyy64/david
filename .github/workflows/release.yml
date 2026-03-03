@@ -22,6 +22,8 @@ jobs:
         with:
           node-version: '22'
 
+      - uses: astral-sh/setup-uv@v5
+
       - name: Install Node dependencies
         working-directory: web
         run: npm ci
@@ -40,15 +42,7 @@ jobs:
 
       - name: Prepare extraResources — uv binary (mac)
         run: |
-          ARCH=${{ matrix.arch }}
-          if [ "$ARCH" = "arm64" ]; then
-            UV_TARGET="aarch64-apple-darwin"
-          else
-            UV_TARGET="x86_64-apple-darwin"
-          fi
-          UV_VERSION=$(curl -s https://api.github.com/repos/astral-sh/uv/releases/latest | grep '"tag_name"' | cut -d'"' -f4)
-          curl -L "https://github.com/astral-sh/uv/releases/download/${UV_VERSION}/uv-${UV_TARGET}.tar.gz" \
-            | tar xz --strip-components=1 -C web/extraResources/ "uv-${UV_TARGET}/uv"
+          cp "$(which uv)" web/extraResources/uv
           chmod +x web/extraResources/uv
 
       - name: Build Mac DMG (${{ matrix.arch }})
@@ -70,6 +64,8 @@ jobs:
         with:
           node-version: '22'
 
+      - uses: astral-sh/setup-uv@v5
+
       - name: Install Node dependencies
         working-directory: web
         run: npm ci
@@ -89,11 +85,8 @@ jobs:
       - name: Prepare extraResources — uv binary (windows)
         shell: pwsh
         run: |
-          $UV_VERSION = (Invoke-RestMethod "https://api.github.com/repos/astral-sh/uv/releases/latest").tag_name
-          $url = "https://github.com/astral-sh/uv/releases/download/$UV_VERSION/uv-x86_64-pc-windows-msvc.zip"
-          Invoke-WebRequest $url -OutFile uv.zip
-          Expand-Archive uv.zip -DestinationPath uv-tmp
-          Copy-Item "uv-tmp\uv-x86_64-pc-windows-msvc\uv.exe" "web\extraResources\uv.exe"
+          $uvPath = (Get-Command uv).Source
+          Copy-Item $uvPath "web\extraResources\uv.exe"
 
       - name: Build Windows installer
         working-directory: web
