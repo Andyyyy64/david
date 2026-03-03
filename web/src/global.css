@@ -9,6 +9,7 @@
   --accent: #48b0a0;
   --accent-rgb: 72, 176, 160;
   --accent-dim: #2f7d72;
+  --accent-strong: #7be5d4;
   --border: #282828;
   --border-light: #333;
 
@@ -405,21 +406,23 @@ pre {
   cursor: pointer;
   transition: transform 0.15s, box-shadow 0.15s;
   flex-shrink: 0;
+  border: 1px solid rgba(8, 10, 14, 0.95);
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.08);
 }
 
 .timeline-dot:hover {
   transform: scale(1.4);
-  box-shadow: 0 0 8px rgba(var(--accent-rgb), 0.4);
+  box-shadow: 0 0 0 2px rgba(8, 10, 14, 0.95), 0 0 0 4px rgba(var(--accent-rgb), 0.85), 0 0 14px rgba(var(--accent-rgb), 0.55);
 }
 
 .timeline-dot.selected {
-  box-shadow: 0 0 0 2px var(--accent), 0 0 12px rgba(var(--accent-rgb), 0.5);
+  box-shadow: 0 0 0 2px rgba(8, 10, 14, 0.95), 0 0 0 4px var(--accent-strong), 0 0 14px rgba(var(--accent-rgb), 0.7);
   transform: scale(1.3);
 }
 
 .timeline-dot.has-event {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
+  outline: 3px solid var(--accent-strong);
+  outline-offset: 1px;
 }
 
 .timeline-dot.highlighted {
