@@ -1,6 +1,8 @@
 # homelife.ai
 
-A personal AI observer that automatically records your daily life and enables reflection and pattern discovery.
+**English** | [日本語](README.ja.md)
+
+A personal AI system for monitoring, managing, and analyzing your daily life.
 
 ## Vision
 
@@ -172,7 +174,7 @@ data/                    # Runtime data (gitignored)
 
 ## Setup
 
-See **[getting-started.md](getting-started.md)** for full platform-specific instructions.
+See **[getting-started.md](getting-started.md)** for full platform-specific instructions ([日本語版](getting-started.ja.md)).
 
 | Platform | Guide |
 |---|---|

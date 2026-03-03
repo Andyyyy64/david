@@ -1,25 +1,27 @@
 # Getting Started
 
+**English** | [日本語](getting-started.ja.md)
+
 - [Windows (WSL2)](#windows-wsl2)
 - [Mac](#mac)
-- [共通設定](#共通設定)
-- [起動](#起動)
+- [Common Configuration](#common-configuration)
+- [Running](#running)
 
 ---
 
 ## Windows (WSL2)
 
-WSL2 上の Ubuntu で動作します。スクリーンキャプチャとウィンドウ監視は PowerShell 経由で Windows 側を操作し、カメラ・マイクは usbipd で USB デバイスを WSL2 に渡します。
+Runs on Ubuntu inside WSL2. Screen capture and window tracking operate on the Windows side via PowerShell. Camera and microphone are passed through from USB using usbipd.
 
-### 1. WSL2 + Ubuntu のセットアップ
+### 1. WSL2 + Ubuntu
 
-PowerShell（管理者）で実行:
+In PowerShell (Administrator):
 
 ```powershell
 wsl --install -d Ubuntu-24.04
 ```
 
-インストール後、Ubuntu を起動してユーザー名・パスワードを設定します。
+Launch Ubuntu and set up your username and password.
 
 ### 2. Python 3.12+
 
@@ -29,7 +31,7 @@ sudo apt update
 sudo apt install -y python3.12 python3.12-venv python3.12-dev
 ```
 
-### 3. uv（Python パッケージマネージャ）
+### 3. uv (Python package manager)
 
 ```bash
 curl -LsSf https://astral.sh/uv/install.sh | sh
@@ -45,46 +47,46 @@ fnm install 22
 fnm use 22
 ```
 
-### 5. alsa-utils（音声録音）
+### 5. alsa-utils (audio recording)
 
 ```bash
 sudo apt install -y alsa-utils
-# audio グループに追加（再ログイン後に有効）
+# Add yourself to the audio group (takes effect after re-login)
 sudo usermod -aG audio $USER
 ```
 
-### 6. カメラの WSL2 への接続（usbipd）
+### 6. Connecting the camera via usbipd
 
-**Windows 側**（PowerShell 管理者）に usbipd をインストール:
+Install **usbipd-win** on the Windows side (PowerShell, Administrator):
 
 ```powershell
 winget install usbipd
 ```
 
-カメラを接続して USB バス ID を確認し、WSL2 にアタッチ:
+Find your camera's bus ID and attach it to WSL2:
 
 ```powershell
 usbipd list
-usbipd bind --busid <BUSID>       # 例: 2-3
+usbipd bind --busid <BUSID>        # e.g. 2-3
 usbipd attach --wsl --busid <BUSID>
 ```
 
-> PCを再起動したり WSL2 を再起動するたびに `usbipd attach` が必要です。自動化したい場合は Task Scheduler でログイン時に実行するよう設定してください。
+> `usbipd attach` must be re-run each time you restart Windows or WSL2. To automate it, set up a Task Scheduler job that runs on login.
 
-WSL2 側でデバイスが認識されているか確認:
+Verify the device is visible inside WSL2:
 
 ```bash
 sudo apt install -y v4l-utils
 v4l2-ctl --list-devices
 ```
 
-### 7. リポジトリのセットアップ
+### 7. Repository setup
 
 ```bash
 git clone <repo-url> homelife.ai
 cd homelife.ai
 
-# Python 依存関係
+# Python dependencies
 uv sync
 
 # Web UI
@@ -95,11 +97,11 @@ cd web && npm install && cd ..
 
 ## Mac
 
-カメラ・マイクは内蔵のものをそのまま使います。外付けデバイスや USB パススルーは不要です。スクリーンキャプチャは `screencapture`、ウィンドウ監視は `osascript` を使用します（どちらも macOS 内蔵）。
+Uses the built-in camera and microphone directly — no USB passthrough or external devices required. Screen capture uses `screencapture` and window tracking uses `osascript`, both built into macOS.
 
 ### 1. Python 3.12+
 
-[pyenv](https://github.com/pyenv/pyenv) 経由が推奨:
+Via [pyenv](https://github.com/pyenv/pyenv) (recommended):
 
 ```bash
 brew install pyenv
@@ -107,7 +109,7 @@ pyenv install 3.12
 pyenv global 3.12
 ```
 
-または Homebrew で直接:
+Or directly via Homebrew:
 
 ```bash
 brew install python@3.12
@@ -128,53 +130,53 @@ fnm install 22
 fnm use 22
 ```
 
-または Homebrew で直接:
+Or directly:
 
 ```bash
 brew install node@22
 ```
 
-### 4. リポジトリのセットアップ
+### 4. Repository setup
 
 ```bash
 git clone <repo-url> homelife.ai
 cd homelife.ai
 
-# Python 依存関係（sounddevice も含む）
+# Python dependencies (includes sounddevice for CoreAudio)
 uv sync
 
 # Web UI
 cd web && npm install && cd ..
 ```
 
-### 5. macOS のプライバシー権限
+### 5. macOS Privacy Permissions
 
-初回起動時にダイアログが出ますが、**事前に手動で許可**しておくとスムーズです。
+You can pre-grant permissions before first launch to avoid mid-run prompts. Go to **System Settings → Privacy & Security** and enable the following for your terminal app (Terminal, iTerm2, etc.):
 
-**システム設定 → プライバシーとセキュリティ** で以下を許可:
+| Permission | Used for |
+|---|---|
+| Camera | Built-in camera capture |
+| Microphone | Built-in microphone recording |
+| Accessibility | Window tracking via osascript |
+| Screen Recording | Screen capture via screencapture |
 
-| 項目 | 対象アプリ | 用途 |
-|---|---|---|
-| カメラ | Terminal（または使用するターミナル） | 内蔵カメラ |
-| マイク | Terminal（または使用するターミナル） | 内蔵マイク |
-| アクセシビリティ | Terminal（または使用するターミナル） | ウィンドウ監視（osascript） |
-| 画面収録 | Terminal（または使用するターミナル） | スクリーンキャプチャ |
+> **Screen Recording on macOS Sequoia+**: Without this permission, `screencapture` produces a black image. Grant it explicitly even if the capture command doesn't prompt for it.
 
-> **画面収録権限**について: macOS Sequoia 以降、`screencapture` コマンドにも画面収録の許可が必要です。許可していない場合、スクリーンキャプチャが黒画像になります。
+After changing permissions, **restart your terminal** before running `life start`.
 
 ---
 
-## 共通設定
+## Common Configuration
 
-### API キー
+### API key
 
 ```bash
 echo "GEMINI_API_KEY=your-key-here" > .env
 ```
 
-Gemini API キーは [Google AI Studio](https://aistudio.google.com/) で取得できます。
+Get a Gemini API key at [Google AI Studio](https://aistudio.google.com/).
 
-### life.toml（最小構成）
+### life.toml (minimal)
 
 ```toml
 [llm]
@@ -188,84 +190,77 @@ interval_sec = 30
 enabled = true
 ```
 
-全オプションは [README.md の Configuration セクション](README.md#configuration) を参照。
+See the [Configuration section in README.md](README.md#configuration) for all options.
 
-### ユーザープロファイル（任意・推奨）
+### User profile (optional, recommended)
 
-LLM がユーザーの名前・職業・環境を把握するためのコンテキストファイル。
+Helps the LLM understand who you are and what you typically do.
 
 ```bash
 mkdir -p data
 cat > data/context.md << 'EOF'
-名前: （あなたの名前）
-職業: （職業・やっていること）
-環境: （自宅/オフィス、使用言語など）
-その他: （習慣やよくやること）
+Name: (your name)
+Occupation: (what you do)
+Environment: (home/office, primary language, etc.)
+Notes: (habits, recurring activities)
 EOF
 ```
 
 ---
 
-## 起動
+## Running
 
 ```bash
-# 両サービスを同時起動（デーモン + Web UI）
+# Start both services (daemon + web UI)
 ./start.sh
 ```
 
-または個別に:
+Or separately:
 
 ```bash
-# デーモン（フォアグラウンド）
-life start
-
-# デーモン（バックグラウンド）
-life start -d
-
-# Web UI（開発モード）
-cd web && npm run dev
-
-# Web UI（本番モード）
-cd web && npm start
+life start          # Daemon (foreground)
+life start -d       # Daemon (background)
+cd web && npm run dev    # Web UI (dev mode)
+cd web && npm start      # Web UI (production)
 ```
 
 - Web UI: http://localhost:3001
-- ライブフィード: http://localhost:3002
+- Live feed: http://localhost:3002
 
-### 動作確認
+### Verify it's working
 
 ```bash
-# 単体でフレーム解析（カメラ・画面・LLM が動くか確認）
+# Capture and analyze a single frame immediately
 life look
 
-# 最近のフレーム確認
+# Show recent frame analyses
 life recent
 
-# デーモンの状態確認
+# Check daemon status
 life status
 ```
 
-### Windows: カメラが認識されない場合
+### Windows: camera not detected
 
 ```powershell
-# Windows 側で再アタッチ
+# Re-attach from Windows side
 usbipd attach --wsl --busid <BUSID>
 ```
 
 ```bash
-# WSL2 側でデバイス確認
+# Check device number inside WSL2
 v4l2-ctl --list-devices
-# life.toml の device 番号を確認・変更
+# Update device in life.toml if needed:
 # [capture]
-# device = 1   # /dev/video1 なら 1
+# device = 1   # if camera is /dev/video1
 ```
 
-### Mac: 権限エラーが出る場合
+### Mac: permission errors
 
-```
-# スクリーンキャプチャが真っ黒 → 画面収録権限
-# カメラが開けない → カメラ権限
-# ウィンドウ名が取得できない → アクセシビリティ権限
-```
+| Symptom | Fix |
+|---|---|
+| Screenshot is black | Grant Screen Recording permission |
+| Camera fails to open | Grant Camera permission |
+| Window title not captured | Grant Accessibility permission |
 
-システム設定 → プライバシーとセキュリティ で該当項目を確認し、ターミナルアプリにチェックを入れてください。変更後はターミナルを再起動してから `life start` を実行してください。
+Go to System Settings → Privacy & Security, check the relevant entry for your terminal, then restart the terminal and re-run `life start`.

@@ -1,0 +1,363 @@
+# homelife.ai
+
+[English](README.md) | **日本語**
+
+日常生活を自動記録し、監視・管理・分析を可能にするパーソナルAIシステム。
+
+## ビジョン
+
+**「人生を監視し、管理し、分析する。」**
+
+3つの柱:
+
+1. **監視** — カメラ・画面・音声・アプリフォーカスを継続的に自動記録。手動入力は一切不要。
+2. **管理** — 「あのとき何してた？」に即答できる外部化された記憶。日記不要の全文検索可能なログ。
+3. **分析** — 「どれだけ集中できた？」「時間をどこに使った？」を日次・週次・月次のパターンで可視化。
+
+## 機能
+
+### キャプチャ・センシング
+
+- **インターバルキャプチャ** — ウェブカメラ・画面・音声を30秒ごとに記録（設定変更可）。その間も1秒ごとに変化を検出し、大きな変化があれば追加フレームを保存（画面: 10%閾値、カメラ: 15%知覚ハッシュ差）。
+- **フォアグラウンドウィンドウ追跡** — Win32 P/Invoke（`GetForegroundWindow`）を使ったPowerShellプロセスで500msごとにアプリのフォーカス変化を記録。プロセス名とウィンドウタイトルを取得し、アプリ別の正確な使用時間を算出。
+- **在席検出** — Haarカスケード顔検出 + MOG2モーション解析によるヒステリシス状態機械（在席 → 離席 → 就寝）。3回連続で顔未検出になるまで遷移しない。設定した夜間時間帯に画面が暗い場合は就寝と判定。
+- **音声キャプチャ・文字起こし** — ALSAで自動デバイス検出・録音。無音トリミング（振幅500閾値、最低0.3秒の発話）で意味のある音声のみ保存。LLMがユーザーコンテキストを踏まえて文字起こし。
+- **ライブフィード** — ポート3002でMJPEGストリーミング（約30fps）。メインキャプチャとは独立して動作。
+
+### AI分析
+
+- **フレーム分析** — 毎ティックにカメラ画像・画面キャプチャ・音声・ウィンドウ情報をLLM（GeminiまたはClaude）に送信。アクティビティカテゴリと自然言語説明をJSON形式で取得。
+- **アクティビティ分類** — LLMが既知カテゴリから選択（新カテゴリは自動登録）。LCS類似度（≥0.7）でファジーマッチング・正規化。アクティビティ→メタカテゴリのマッピングは`activity_mappings`テーブルで管理。`life consolidate-activities`コマンドでLLMが類義語・表記ゆれをまとめてマージ可能。
+- **メタカテゴリ** — アクティビティを6つのメタカテゴリに動的マッピング: **focus（集中作業）**, **communication（コミュニケーション）**, **entertainment（エンタメ）**, **browsing（ブラウジング）**, **break（休憩）**, **idle（アイドル）**。
+- **マルチスケールサマリー** — 階層的に生成: 10分（生フレームから）→ 30分 → 1時間 → 6時間 → 12時間 → 24時間（キーフレーム画像・文字起こし・改善提案含む）。
+- **日次レポート** — 日付変更時に自動生成。アクティビティ内訳・タイムライン・集中度（集中フレーム/アクティブフレーム）・イベント一覧を含む。Webhookで配信。
+- **コンテキスト認識** — ユーザープロファイル（`data/context.md`）と直近5フレームの履歴を毎回のLLMプロンプトに注入。
+
+### Web UI
+
+- **タイムライン** — フレームを時間帯でグループ化、モーションスコアでサイズ調整、メタカテゴリで色付け。キーボード（矢印キー）とスクロールホイールでフレーム切り替え。
+- **詳細パネル** — カメラ画像（クリックで拡大）、画面キャプチャ（メイン + 変化検出分のサムネイルストリップ）、音声プレイヤー + 文字起こし、ウィンドウ情報、全メタデータ。
+- **サマリーパネル** — スケール別（10分〜24時間）に展開・折りたたみ。サマリーをクリックするとタイムライン上の対応時間帯をハイライト。
+- **ダッシュボード** — 集中スコア%、メタカテゴリ別円グラフ、アクティビティ一覧（継続時間バー）、アプリ使用時間TOP10（切り替え回数付き）、週次スタックバーチャート、ガントスタイルセッションタイムライン。
+- **検索** — フレーム説明・文字起こし・アクティビティ・ウィンドウタイトル・サマリーをFTS5トライグラム全文検索。結果クリックで対象日時・フレームにジャンプ。
+- **アクティビティヒートマップ** — 24時間×フレーム数の強度ヒートマップ。
+- **ライブフィード** — LIVE/OFFLINEインジケーター付きリアルタイムMJPEGストリーム、フルスクリーンモーダルに拡大可能。
+- **モバイル対応** — 狭い画面ではタブ切り替え（サマリー / タイムライン / 詳細）のレスポンシブレイアウト。
+- **自動更新** — 今日のデータ表示時は30秒ごとにフレーム・サマリー・イベントをポーリング。
+
+### チャットプラットフォーム連携
+
+チャットの会話を収集して「外部化された記憶」を強化します。何を誰と話していたかという情報は、日常の活動記録に不可欠な次元を加えます。
+
+**アーキテクチャ:** 統一された`ChatSource`インターフェースによるアダプターパターン。`life.toml`で使うプラットフォームのみ有効化。
+
+| プラットフォーム | 状態 | 方式 | DM | サーバー/グループ |
+|---|---|---|---|---|
+| **Discord** | 実装済み | REST APIポーリング（ユーザートークン） | ✓ | ✓ |
+| **LINE** | 計画中 | チャット履歴エクスポート | ✓ | ✓ |
+| **Slack** | 計画中 | Botトークン + Events API | — | ✓ |
+| **Telegram** | 計画中 | Bot API / TDLib | ✓ | ✓ |
+| **WhatsApp** | 計画中 | チャット履歴エクスポート | ✓ | ✓ |
+| **Teams** | 計画中 | Microsoft Graph API | ✓ | ✓ |
+
+**動作フロー:**
+1. プラットフォームアダプターがバックグラウンドスレッドで新着メッセージをポーリング
+2. メッセージを`chat_messages`テーブルに統一スキーマで保存
+3. 直近の会話をLLMプロンプトに注入 — フレーム分析が「Discordでこの話題を議論していた」という情報を受け取る
+4. 日次レポートにチャット活動サマリー（チャンネル別メッセージ数）を含む
+
+## アーキテクチャ
+
+```
+daemon/ (Python)         web/ (Node.js/Hono)       frontend (React)
+  ├─ カメラキャプチャ      ├─ REST API               ├─ タイムライン
+  ├─ 画面キャプチャ        ├─ SQLite 読み取り専用     ├─ フレーム詳細
+  ├─ 音声キャプチャ        ├─ メディア配信            ├─ サマリーパネル
+  ├─ ウィンドウ監視        ├─ MJPEGプロキシ          ├─ ライブフィード
+  ├─ 在席検出             └─ 静的ファイル配信         ├─ ダッシュボード
+  ├─ LLM分析                                        ├─ 検索
+  ├─ サマリー生成                                    ├─ ヒートマップ
+  ├─ レポート生成                                    └─ モバイル対応
+  ├─ チャット連携
+  ├─ 変化検出
+  ├─ SQLite 書き込み
+  └─ MJPEGライブサーバー (port 3002)
+```
+
+- デーモンがSQLiteに書き込み、WebサーバーがWALモードで読み取り（同時アクセス対応）
+- ウィンドウモニターは独立したSQLite接続を持つ永続PowerShellプロセスで動作
+- 共有`data/`ディレクトリ: `frames/`, `screens/`, `audio/`, `life.db`
+- LLMプロバイダーは抽象化: Gemini または Claude、`life.toml`で設定
+
+### スレッドモデル
+
+| スレッド | 役割 | レート |
+|---|---|---|
+| メインループ | キャプチャ + 分析 + サマリー生成 | 30秒ごと（設定可） |
+| ライブフィード | ウェブカメラ → MJPEGストリーム | 約30fps |
+| 音声録音 | インターバル中のALSA録音 | ティックごと |
+| ウィンドウモニター | PowerShell → `window_events`テーブル | 500msポーリング |
+| 変化検出 | 画面/カメラのハッシュ比較 | ティック間で1秒ごと |
+| チャットポーラー | Discord等 → `chat_messages`テーブル | 60秒ごと（設定可） |
+| ライブHTTPサーバー | MJPEGをクライアントに配信 | オンデマンド |
+
+## プロジェクト構造
+
+```
+daemon/                  # Pythonパッケージ
+  ├─ cli.py              # CLIエントリポイント (Click)
+  ├─ daemon.py           # メイン観測ループ
+  ├─ config.py           # TOML設定読み込み
+  ├─ analyzer.py         # フレーム分析 + サマリー生成
+  ├─ activity.py         # ActivityManager: DB管理の正規化 + メタカテゴリマッピング
+  ├─ report.py           # 日次レポート生成
+  ├─ notify.py           # Discord / LINE Webhook通知
+  ├─ live.py             # MJPEGストリーミングサーバー
+  ├─ chat/               # チャットプラットフォーム連携
+  │   ├─ base.py         # 抽象ChatSourceインターフェース
+  │   ├─ discord.py      # Discordアダプター（ユーザートークン、RESTポーリング）
+  │   └─ manager.py      # ChatManager: アダプターを統括
+  ├─ llm/                # LLMプロバイダー抽象化
+  │   ├─ base.py         # 抽象基底クラス
+  │   ├─ gemini.py       # Google Gemini（画像・音声対応）
+  │   └─ claude.py       # Anthropic Claude（CLI経由）
+  ├─ capture/            # データキャプチャモジュール
+  │   ├─ camera.py       # ウェブカメラ（V4L2 / AVFoundation）
+  │   ├─ screen.py       # 画面キャプチャ（PowerShell / screencapture）
+  │   ├─ audio.py        # 音声録音（ALSA / sounddevice）
+  │   ├─ window.py       # フォアグラウンドウィンドウ監視（PowerShell+Win32 / osascript）
+  │   └─ frame_store.py  # JPEGファイルストレージ
+  ├─ analysis/           # ローカル分析（LLM不使用）
+  │   ├─ motion.py       # MOG2背景差分
+  │   ├─ scene.py        # 輝度分類
+  │   ├─ change.py       # 知覚ハッシュ変化検出
+  │   ├─ presence.py     # 顔検出 + 状態機械
+  │   └─ transcribe.py   # 音声 → テキスト（LLM経由）
+  ├─ summary/            # サマリーフォーマット
+  │   ├─ formatter.py    # CLI出力フォーマット
+  │   └─ timeline.py     # タイムラインデータ構築
+  ├─ claude/             # Claude固有機能
+  │   ├─ analyzer.py     # レビュー分析
+  │   └─ review.py       # 日次レビューパッケージ生成
+  └─ storage/            # データベース層
+      ├─ database.py     # SQLiteスキーマ、マイグレーション、クエリ
+      └─ models.py       # Frame, Event, Summary, Report データクラス
+
+web/                     # Node.js Webアプリ
+  ├─ server/
+  │   ├─ index.ts        # Honoアプリセットアップ、メディア配信
+  │   ├─ db.ts           # SQLite接続（読み取り専用）
+  │   └─ routes/         # APIルートハンドラー
+  └─ src/
+      ├─ App.tsx         # メインSPAオーケストレーター
+      ├─ components/     # Reactコンポーネント
+      ├─ hooks/          # 30秒ポーリングのデータフェッチ
+      └─ lib/            # APIクライアント、型、アクティビティモジュール、ユーティリティ
+
+data/                    # 実行時データ（gitignore済み）
+  ├─ frames/             # カメラJPEG (YYYY-MM-DD/*.jpg)
+  ├─ screens/            # 画面PNG (YYYY-MM-DD/*.png)
+  ├─ audio/              # 音声WAV (YYYY-MM-DD/*.wav)
+  ├─ live/               # 現在のMJPEGストリームフレーム
+  ├─ context.md          # LLM用ユーザープロファイル
+  ├─ life.db             # SQLiteデータベース（WALモード）
+  └─ life.pid            # デーモンPIDファイル
+```
+
+## セットアップ
+
+プラットフォーム別の詳細手順は **[getting-started.ja.md](getting-started.ja.md)** を参照してください。
+
+| プラットフォーム | ガイド |
+|---|---|
+| Windows (WSL2) | [getting-started.ja.md#windows-wsl2](getting-started.ja.md#windows-wsl2) |
+| Mac | [getting-started.ja.md#mac](getting-started.ja.md#mac) |
+
+### 必要要件
+
+| | Windows (WSL2) | Mac |
+|---|---|---|
+| Python | 3.12+（WSL2内） | 3.12+ |
+| Node.js | 22+（WSL2内） | 22+ |
+| カメラ | 外付けUSB（usbipd経由） | 内蔵カメラ |
+| マイク | 外付けUSB（usbipd経由） | 内蔵マイク |
+| 画面キャプチャ | PowerShell + Windows Forms | `screencapture`（内蔵） |
+| ウィンドウ監視 | PowerShell + Win32 API | `osascript`（内蔵） |
+| Gemini APIキー | 必要 | 必要 |
+
+### クイックスタート
+
+```bash
+uv sync
+cd web && npm install && cd ..
+echo "GEMINI_API_KEY=your-key-here" > .env
+./start.sh
+```
+
+### 設定
+
+`life.toml`で動作を設定します（全オプションは[下記参照](#設定-1)）:
+
+```toml
+[llm]
+provider = "gemini"
+gemini_model = "gemini-2.5-flash"
+
+[capture]
+interval_sec = 30
+
+[presence]
+enabled = true
+```
+
+`data/context.md`にユーザー情報を書くと、LLMが名前・環境・習慣を踏まえた分析を行います。
+
+### 起動
+
+```bash
+./start.sh       # デーモン + Web UIを同時起動
+
+life start       # デーモンのみ（フォアグラウンド）
+life start -d    # デーモンのみ（バックグラウンド）
+cd web && npm run dev    # Web UI（開発モード）
+```
+
+- Web UI: http://localhost:3001
+- ライブフィード: http://localhost:3002
+
+### Docker
+
+```bash
+docker compose up
+```
+
+カメラ・音声デバイスを使う環境では`docker-compose.override.yml`でデバイスマウントを設定してください。
+
+## CLIコマンド
+
+| コマンド | 説明 |
+|---|---|
+| `life start [-d]` | 観測デーモンを起動（`-d`でバックグラウンド） |
+| `life stop` | デーモンを停止 |
+| `life status` | 状態を表示（フレーム数、サマリー数、ディスク使用量） |
+| `life capture` | テストフレームを1枚撮影 |
+| `life look` | フレームを撮影してすぐに分析 |
+| `life recent [-n 5]` | 直近のフレーム分析を表示 |
+| `life today [DATE]` | その日のタイムラインを表示 |
+| `life stats [DATE]` | 日次統計を表示 |
+| `life summaries [DATE] [--scale 1h]` | サマリーを表示（10m/30m/1h/6h/12h/24h） |
+| `life events [DATE]` | 検出イベントを一覧表示 |
+| `life report [DATE]` | 日次日記レポートを生成 |
+| `life review [DATE] [--json]` | レビューパッケージを生成 |
+| `life consolidate-activities` | LLMでアクティビティカテゴリの類義語をマージ |
+| `life notify-test` | Webhook通知のテスト送信 |
+
+## 設定
+
+`life.toml`の全オプション:
+
+```toml
+data_dir = "data"
+
+[capture]
+device = 0              # カメラデバイスID (/dev/videoN)
+interval_sec = 30       # キャプチャ間隔（秒）
+width = 640
+height = 480
+jpeg_quality = 85
+audio_device = ""       # ALSAデバイス（空欄 = 自動検出）
+audio_sample_rate = 44100
+
+[analysis]
+motion_threshold = 0.02    # MOG2前景ピクセル比率
+brightness_dark = 40.0     # これ以下 = DARK
+brightness_bright = 180.0  # これ以上 = BRIGHT
+
+[llm]
+provider = "gemini"              # "gemini" または "claude"
+claude_model = "haiku"
+gemini_model = "gemini-2.5-flash"
+
+[presence]
+enabled = true
+absent_threshold_ticks = 3       # 離席判定までのティック数
+sleep_start_hour = 23
+sleep_end_hour = 8
+
+[notify]
+provider = "discord"             # "discord" または "line"
+webhook_url = ""
+enabled = false
+
+[chat]
+enabled = false                  # チャット連携のマスタースイッチ
+
+[chat.discord]
+enabled = false
+user_token = ""                  # Discordユーザートークン
+user_id = ""                     # あなたのDiscordユーザーID
+poll_interval = 60               # ポーリング間隔（秒）
+backfill_months = 3              # 初回起動時の過去履歴取得月数（0でスキップ）
+```
+
+## Web API
+
+| エンドポイント | 説明 |
+|---|---|
+| `GET /api/frames?date=YYYY-MM-DD` | 指定日のフレーム一覧 |
+| `GET /api/frames/latest` | 最新フレームを取得 |
+| `GET /api/frames/:id` | IDでフレームを取得 |
+| `GET /api/summaries?date=...&scale=...` | サマリー一覧 |
+| `GET /api/events?date=...` | イベント一覧 |
+| `GET /api/stats?date=...` | 日次統計（カウント、平均、時間別アクティビティ） |
+| `GET /api/stats/activities?date=...` | アクティビティ別内訳（継続時間・時間別詳細） |
+| `GET /api/stats/apps?date=...` | ウィンドウイベントからのアプリ使用時間（切り替え回数付き） |
+| `GET /api/stats/dates` | データのある日付一覧 |
+| `GET /api/stats/range?from=...&to=...` | 期間別日次統計（メタカテゴリ内訳付き） |
+| `GET /api/sessions?date=...` | アクティビティセッション（連続フレームのグループ化） |
+| `GET /api/reports?date=...` | 日次レポート取得 |
+| `GET /api/reports` | 最近のレポート一覧 |
+| `GET /api/activities` | アクティビティカテゴリ一覧（メタカテゴリ付き） |
+| `GET /api/activities/mappings` | アクティビティ → メタカテゴリ マッピングテーブル |
+| `GET /api/search?q=...&from=...&to=...` | 全文検索（フレーム + サマリー） |
+| `GET /api/live/stream` | MJPEGストリームプロキシ |
+| `GET /api/live/frame` | JPEGスナップショット（1枚） |
+| `GET /media/{path}` | 画像・音声ファイルの配信 |
+
+## データベーススキーマ
+
+### frames
+コアキャプチャデータ: タイムスタンプ、カメラパス、画面パス、追加画面パス、音声パス、文字起こし、輝度、モーションスコア、シーンタイプ、LLM説明、アクティビティカテゴリ、フォアグラウンドウィンドウ。
+
+### window_events
+ウィンドウモニターが記録するフォーカス変化イベント: タイムスタンプ、プロセス名、ウィンドウタイトル。`LEAD()`ウィンドウ関数で正確なアプリ使用時間を算出。
+
+### summaries
+マルチスケールサマリー（10分〜24時間）: タイムスタンプ、スケール、内容、フレーム数。
+
+### events
+検出イベント: シーン変化、モーションスパイク、在席状態変化。元フレームに紐付け。
+
+### activity_mappings
+動的なアクティビティ → メタカテゴリマッピング。アクティビティ名が主キー。`meta_category`、初回記録時刻、フレーム数を保持。マイグレーション時に既存フレームからシード。LLMが新アクティビティを生成するたびに自動更新。
+
+### reports
+日次自動生成レポート: 内容、フレーム数、集中度%。
+
+### chat_messages
+チャットプラットフォームから収集したメッセージ: プラットフォーム、プラットフォーム固有メッセージID、チャンネル/サーバー情報、著者、is_selfフラグ、内容、タイムスタンプ、添付ファイル/埋め込みのJSONメタデータ。(platform, platform_message_id)でユニーク制約。
+
+### memos
+日次ユーザーメモ: 日付（主キー）、内容、更新日時。当日のみ編集可、過去は読み取り専用。
+
+### FTSインデックス
+`frames_fts`（トライグラム）: description, transcription, activity, foreground_window。`summaries_fts`（トライグラム）: content。
+
+## 技術スタック
+
+- **デーモン**: Python 3.12 / Click / OpenCV / SQLite（WALモード）
+- **LLM**: Google Gemini（画像・音声）/ Anthropic Claude（CLI経由）
+- **ウィンドウ追跡**: PowerShell / Win32 P/Invoke（`GetForegroundWindow`）/ osascript（macOS）
+- **Webサーバー**: Hono 4 / better-sqlite3 / Node.js 22
+- **フロントエンド**: React 19 / TypeScript / Vite 6
+- **インフラ**: Docker Compose / WSL2 / macOS
