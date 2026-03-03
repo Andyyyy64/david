@@ -13,6 +13,11 @@ files:
   - node_modules/**
   - package.json
 
+# Bundle Python daemon source and uv binary for standalone operation
+extraResources:
+  - from: extraResources/
+    to: .
+
 # Unpack native modules from ASAR so they can be loaded at runtime
 asarUnpack:
   - "node_modules/better-sqlite3/**"

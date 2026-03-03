@@ -9,6 +9,7 @@ permissions:
   contents: write
 
 jobs:
+  # ── macOS ──────────────────────────────────────────────────────────────────
   build-mac:
     runs-on: macos-latest
     strategy:
@@ -21,28 +22,45 @@ jobs:
         with:
           node-version: '22'
 
-      - name: Install dependencies
+      - name: Install Node dependencies
         working-directory: web
         run: npm ci
 
-      - name: Build frontend
+      - name: Build frontend + Electron main
         working-directory: web
-        run: npm run build
+        run: npm run build && npm run electron:compile
 
-      - name: Compile Electron main
-        working-directory: web
-        run: npm run electron:compile
+      - name: Prepare extraResources — daemon source
+        run: |
+          mkdir -p web/extraResources/daemon-src
+          cp -r daemon web/extraResources/daemon-src/daemon
+          cp pyproject.toml uv.lock web/extraResources/daemon-src/
+          # Bundle the YOLO model too
+          [ -f yolov8n.pt ] && cp yolov8n.pt web/extraResources/daemon-src/ || true
+
+      - name: Prepare extraResources — uv binary (mac)
+        run: |
+          ARCH=${{ matrix.arch }}
+          if [ "$ARCH" = "arm64" ]; then
+            UV_TARGET="aarch64-apple-darwin"
+          else
+            UV_TARGET="x86_64-apple-darwin"
+          fi
+          UV_VERSION=$(curl -s https://api.github.com/repos/astral-sh/uv/releases/latest | grep '"tag_name"' | cut -d'"' -f4)
+          curl -L "https://github.com/astral-sh/uv/releases/download/${UV_VERSION}/uv-${UV_TARGET}.tar.gz" \
+            | tar xz --strip-components=1 -C web/extraResources/ "uv-${UV_TARGET}/uv"
+          chmod +x web/extraResources/uv
 
       - name: Build Mac DMG (${{ matrix.arch }})
         working-directory: web
         run: npx electron-builder --mac --${{ matrix.arch }} --publish never
 
-      - name: Upload DMG
-        uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v4
         with:
           name: mac-${{ matrix.arch }}
           path: release/*.dmg
 
+  # ── Windows ────────────────────────────────────────────────────────────────
   build-windows:
     runs-on: windows-latest
     steps:
@@ -52,40 +70,51 @@ jobs:
         with:
           node-version: '22'
 
-      - name: Install dependencies
+      - name: Install Node dependencies
         working-directory: web
         run: npm ci
 
-      - name: Build frontend
+      - name: Build frontend + Electron main
         working-directory: web
-        run: npm run build
+        run: npm run build && npm run electron:compile
 
-      - name: Compile Electron main
-        working-directory: web
-        run: npm run electron:compile
+      - name: Prepare extraResources — daemon source
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path web\extraResources\daemon-src
+          Copy-Item -Recurse daemon web\extraResources\daemon-src\daemon
+          Copy-Item pyproject.toml, uv.lock web\extraResources\daemon-src\
+          if (Test-Path yolov8n.pt) { Copy-Item yolov8n.pt web\extraResources\daemon-src\ }
+
+      - name: Prepare extraResources — uv binary (windows)
+        shell: pwsh
+        run: |
+          $UV_VERSION = (Invoke-RestMethod "https://api.github.com/repos/astral-sh/uv/releases/latest").tag_name
+          $url = "https://github.com/astral-sh/uv/releases/download/$UV_VERSION/uv-x86_64-pc-windows-msvc.zip"
+          Invoke-WebRequest $url -OutFile uv.zip
+          Expand-Archive uv.zip -DestinationPath uv-tmp
+          Copy-Item "uv-tmp\uv-x86_64-pc-windows-msvc\uv.exe" "web\extraResources\uv.exe"
 
       - name: Build Windows installer
         working-directory: web
         run: npx electron-builder --win --publish never
 
-      - name: Upload installer
-        uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v4
         with:
           name: windows-x64
           path: release/*.exe
 
+  # ── GitHub Release ─────────────────────────────────────────────────────────
   release:
     needs: [build-mac, build-windows]
     runs-on: ubuntu-latest
     steps:
-      - name: Download all artifacts
-        uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v4
         with:
           path: artifacts
           merge-multiple: true
 
-      - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
+      - uses: softprops/action-gh-release@v2
         with:
           files: artifacts/*
           prerelease: true
@@ -98,24 +127,20 @@ jobs:
             ### Downloads
             | Platform | File |
             |---|---|
-            | macOS (Apple Silicon) | `*-arm64.dmg` |
-            | macOS (Intel) | `*.dmg` (without arm64) |
-            | Windows 10/11 | `*.exe` (NSIS installer) |
+            | macOS Apple Silicon (M1/M2/M3) | `*-arm64.dmg` |
+            | macOS Intel | `*.dmg` (without arm64 in name) |
+            | Windows 10/11 x64 | `*.exe` |
 
-            ### Requirements
-            Before launching, clone the repo and set up the Python environment:
-            ```bash
-            git clone https://github.com/${{ github.repository }} homelife.ai
-            cd homelife.ai
-            uv sync
-            echo "GEMINI_API_KEY=your-key" > .env
-            ```
-            On first launch the app will ask you to select the repository folder.
+            ### Setup
+            1. **Download and install** the app for your platform
+            2. **First launch**: the app automatically sets up the Python environment (~1 min)
+            3. **Add your API key** via Settings (⚙ gear icon, bottom-left)
+               - Get a free Gemini key at https://aistudio.google.com/
 
             ### macOS note
-            The app is unsigned. Right-click the DMG → Open to bypass Gatekeeper.
+            App is unsigned — right-click the DMG → Open to bypass Gatekeeper.
 
             ### Windows note
-            Windows SmartScreen may warn about the unsigned installer. Click "More info" → "Run anyway".
+            SmartScreen may warn — click "More info" → "Run anyway".
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

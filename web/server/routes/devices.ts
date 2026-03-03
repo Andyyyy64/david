@@ -5,12 +5,19 @@ import { existsSync } from 'node:fs';
 
 const app = new Hono();
 
+// In packaged mode, HOMELIFE_PYTHON is set by main.ts.
+// In dev mode, fall back to the repo's .venv.
 const REPO_ROOT = resolve(process.cwd(), '..');
 
 function getPython(): string {
+  if (process.env.HOMELIFE_PYTHON) return process.env.HOMELIFE_PYTHON;
   const isWindows = process.platform === 'win32';
   const bin = isWindows ? 'python.exe' : 'python';
   return resolve(REPO_ROOT, '.venv', isWindows ? 'Scripts' : 'bin', bin);
+}
+
+function getDaemonSrc(): string {
+  return process.env.HOMELIFE_DAEMON_SRC || REPO_ROOT;
 }
 
 interface DeviceResult {
@@ -38,8 +45,12 @@ function runDevices(): Promise<DeviceResult> {
   }
 
   return new Promise((resolve_fn) => {
-    const script = resolve(REPO_ROOT, 'daemon', 'devices.py');
-    const proc = spawn(python, [script], { cwd: REPO_ROOT });
+    const daemonSrc = getDaemonSrc();
+    const script = resolve(daemonSrc, 'daemon', 'devices.py');
+    const proc = spawn(python, [script], {
+      cwd: daemonSrc,
+      env: { ...process.env, PYTHONPATH: daemonSrc },
+    });
 
     let stdout = '';
     let stderr = '';

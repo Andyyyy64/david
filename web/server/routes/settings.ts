@@ -6,9 +6,11 @@ import { parse as parseToml } from 'smol-toml';
 const app = new Hono();
 
 // Repo root is one level above web/
-const REPO_ROOT = resolve(process.cwd(), '..');
-const TOML_PATH = resolve(REPO_ROOT, 'life.toml');
-const ENV_PATH = resolve(REPO_ROOT, '.env');
+// In packaged mode, HOMELIFE_CONFIG_DIR points to app.getPath('userData').
+// In dev mode, fall back to one level above web/ (repo root).
+const CONFIG_DIR = process.env.HOMELIFE_CONFIG_DIR || resolve(process.cwd(), '..');
+const TOML_PATH = resolve(CONFIG_DIR, 'life.toml');
+const ENV_PATH  = resolve(CONFIG_DIR, '.env');
 
 // ── TOML helpers ─────────────────────────────────────────────────────────────
 
