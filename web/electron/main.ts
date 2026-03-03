@@ -1,16 +1,43 @@
-import { app, BrowserWindow, Tray, Menu, shell, nativeImage } from 'electron'
+import { app, BrowserWindow, Tray, Menu, shell, nativeImage, dialog } from 'electron'
 import { spawn, ChildProcess } from 'child_process'
 import { createConnection } from 'net'
-import { existsSync } from 'fs'
+import { existsSync, readFileSync } from 'fs'
 import path from 'path'
 
 // Pass `--dev` to load the Vite dev server (http://localhost:5173) instead of Hono
 const isDev = process.argv.includes('--dev')
 const WEB_PORT = 3001
 
-// When running `electron .` from web/, getAppPath() returns the web/ directory
+// When running `electron .` from web/, getAppPath() returns the web/ directory.
+// When packaged, we read the repo path from userData/config.json (key: repoPath).
 const WEB_DIR = app.getAppPath()
-const REPO_ROOT = path.join(WEB_DIR, '..')
+
+function resolveRepoRoot(): string {
+  // Explicit env var override — used by the WSL2 bridge launcher on Windows
+  if (process.env.HOMELIFE_REPO) return process.env.HOMELIFE_REPO
+
+  // userData config (packaged app or manual config)
+  try {
+    const configPath = path.join(app.getPath('userData'), 'config.json')
+    if (existsSync(configPath)) {
+      const cfg = JSON.parse(readFileSync(configPath, 'utf8'))
+      if (typeof cfg.repoPath === 'string') return cfg.repoPath
+    }
+  } catch { /* app.getPath may fail before ready on some platforms */ }
+
+  if (app.isPackaged) {
+    // Packaged: assume repo is a few levels up from resources/app
+    return path.join(WEB_DIR, '..', '..', '..', '..')
+  }
+  // Development: web/ is inside the repo
+  return path.join(WEB_DIR, '..')
+}
+
+// WSL2 bridge mode: Electron runs on Windows, but the daemon/server live in WSL2.
+// Set HOMELIFE_WSL2_BRIDGE=1 in the environment to enable this mode.
+const IS_WSL2_BRIDGE = process.env.HOMELIFE_WSL2_BRIDGE === '1'
+
+const REPO_ROOT = resolveRepoRoot()
 
 let mainWindow: BrowserWindow | null = null
 let tray: Tray | null = null
@@ -55,17 +82,31 @@ function waitForPort(port: number, timeoutMs = 20_000): Promise<void> {
 // ── Subprocess management ────────────────────────────────────────────────────
 
 function startDaemon() {
-  const python = getPythonPath()
-  if (!existsSync(python)) {
-    console.warn(`[daemon] Python venv not found at ${python}`)
-    console.warn('[daemon] Run "uv sync" in the repo root first.')
-    return
+  if (IS_WSL2_BRIDGE) {
+    // Windows + WSL2 bridge: run daemon inside WSL2 via wsl.exe
+    console.log('[daemon] WSL2 bridge mode')
+    daemonProcess = spawn(
+      'wsl.exe',
+      ['-e', 'bash', '-c', `cd "${REPO_ROOT}" && .venv/bin/python -m daemon start`],
+      { stdio: ['ignore', 'pipe', 'pipe'], env: { ...process.env } }
+    )
+  } else {
+    const python = getPythonPath()
+    if (!existsSync(python)) {
+      console.warn(`[daemon] Python venv not found at ${python}`)
+      dialog.showErrorBox(
+        'Python environment not found',
+        `Could not find the Python environment at:\n${python}\n\n` +
+        `Please run "uv sync" in the repo root (${REPO_ROOT}) and restart the app.`
+      )
+      return
+    }
+    daemonProcess = spawn(python, ['-m', 'daemon', 'start'], {
+      cwd: REPO_ROOT,
+      stdio: ['ignore', 'pipe', 'pipe'],
+      env: { ...process.env },
+    })
   }
-  daemonProcess = spawn(python, ['-m', 'daemon', 'start'], {
-    cwd: REPO_ROOT,
-    stdio: ['ignore', 'pipe', 'pipe'],
-    env: { ...process.env },
-  })
   daemonProcess.stdout?.on('data', (d: Buffer) => process.stdout.write(`[daemon] ${d}`))
   daemonProcess.stderr?.on('data', (d: Buffer) => process.stderr.write(`[daemon] ${d}`))
   daemonProcess.on('exit', (code: number | null) => console.log(`[daemon] exited (${code})`))
@@ -73,16 +114,31 @@ function startDaemon() {
 }
 
 function startWebServer() {
-  const tsx = getTsxPath()
-  if (!existsSync(tsx)) {
-    console.warn(`[server] tsx not found at ${tsx}. Run "npm install" in web/.`)
-    return
+  if (IS_WSL2_BRIDGE) {
+    // Windows + WSL2 bridge: run Hono server inside WSL2 via wsl.exe
+    console.log('[server] WSL2 bridge mode')
+    const webDir = `${REPO_ROOT}/web`
+    webProcess = spawn(
+      'wsl.exe',
+      ['-e', 'bash', '-c', `cd "${webDir}" && NODE_ENV=production node_modules/.bin/tsx server/index.ts`],
+      { stdio: ['ignore', 'pipe', 'pipe'], env: { ...process.env } }
+    )
+  } else {
+    const tsx = getTsxPath()
+    if (!existsSync(tsx)) {
+      console.warn(`[server] tsx not found at ${tsx}. Run "npm install" in web/.`)
+      dialog.showErrorBox(
+        'Node.js dependencies not found',
+        `Could not find tsx at:\n${tsx}\n\nPlease run "npm install" in the web/ directory and restart the app.`
+      )
+      return
+    }
+    webProcess = spawn(tsx, ['server/index.ts'], {
+      cwd: WEB_DIR,
+      stdio: ['ignore', 'pipe', 'pipe'],
+      env: { ...process.env, NODE_ENV: 'production' },
+    })
   }
-  webProcess = spawn(tsx, ['server/index.ts'], {
-    cwd: WEB_DIR,
-    stdio: ['ignore', 'pipe', 'pipe'],
-    env: { ...process.env, NODE_ENV: 'production' },
-  })
   webProcess.stdout?.on('data', (d: Buffer) => process.stdout.write(`[server] ${d}`))
   webProcess.stderr?.on('data', (d: Buffer) => process.stderr.write(`[server] ${d}`))
   webProcess.on('exit', (code: number | null) => console.log(`[server] exited (${code})`))
@@ -114,6 +170,7 @@ async function createWindow() {
   const url = isDev ? 'http://localhost:5173' : `http://localhost:${WEB_PORT}`
   console.log(`[app] Loading ${url}`)
 
+  const iconPath = path.join(__dirname, '..', 'icon.png')
   mainWindow = new BrowserWindow({
     width: 1400,
     height: 900,
@@ -121,6 +178,7 @@ async function createWindow() {
     minHeight: 600,
     title: 'homelife.ai',
     backgroundColor: '#0f172a',
+    icon: existsSync(iconPath) ? iconPath : undefined,
     webPreferences: {
       preload: path.join(__dirname, 'preload.cjs'),
       contextIsolation: true,
