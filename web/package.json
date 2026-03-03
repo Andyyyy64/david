@@ -19,7 +19,8 @@
     "better-sqlite3": "^11",
     "hono": "^4",
     "react": "^19",
-    "react-dom": "^19"
+    "react-dom": "^19",
+    "smol-toml": "^1.6.0"
   },
   "devDependencies": {
     "@types/better-sqlite3": "^7",
@@ -28,9 +29,9 @@
     "@types/react-dom": "^19",
     "@vitejs/plugin-react": "^4",
     "concurrently": "^9",
-    "esbuild": "^0.24",
     "electron": "^33",
     "electron-builder": "^25",
+    "esbuild": "^0.24",
     "tsx": "^4",
     "typescript": "^5",
     "vite": "^6",

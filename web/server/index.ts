@@ -15,6 +15,8 @@ import sessionsRoutes from './routes/sessions.js';
 import reportsRoutes from './routes/reports.js';
 import memosRoutes from './routes/memos.js';
 import chatRoutes from './routes/chat.js';
+import settingsRoutes from './routes/settings.js';
+import devicesRoutes from './routes/devices.js';
 
 const app = new Hono();
 
@@ -30,6 +32,8 @@ app.route('/api/sessions', sessionsRoutes);
 app.route('/api/reports', reportsRoutes);
 app.route('/api/memos', memosRoutes);
 app.route('/api/chat', chatRoutes);
+app.route('/api/settings', settingsRoutes);
+app.route('/api/devices', devicesRoutes);
 
 // Daemon status (read from data/status.json)
 app.get('/api/status', (c) => {
