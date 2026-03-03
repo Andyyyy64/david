@@ -172,9 +172,9 @@ data/                    # Runtime data (gitignored)
 
 ## Setup
 
-詳細な手順は **[getting-started.md](getting-started.md)** を参照してください。
+See **[getting-started.md](getting-started.md)** for full platform-specific instructions.
 
-| プラットフォーム | ガイド |
+| Platform | Guide |
 |---|---|
 | Windows (WSL2) | [getting-started.md#windows-wsl2](getting-started.md#windows-wsl2) |
 | Mac | [getting-started.md#mac](getting-started.md#mac) |
@@ -185,29 +185,24 @@ data/                    # Runtime data (gitignored)
 |---|---|---|
 | Python | 3.12+ (in WSL2) | 3.12+ |
 | Node.js | 22+ (in WSL2) | 22+ |
-| カメラ | 外付け USB（usbipd でパススルー） | 内蔵カメラ |
-| マイク | 外付け USB（usbipd でパススルー） | 内蔵マイク |
-| スクリーン | PowerShell + Windows Forms | `screencapture`（内蔵） |
-| ウィンドウ監視 | PowerShell + Win32 API | `osascript`（内蔵） |
-| Gemini API キー | 必要 | 必要 |
+| Camera | External USB via usbipd passthrough | Built-in |
+| Microphone | External USB via usbipd passthrough | Built-in |
+| Screen capture | PowerShell + Windows Forms | `screencapture` (built-in) |
+| Window tracking | PowerShell + Win32 API | `osascript` (built-in) |
+| Gemini API key | Required | Required |
 
 ### Quick Start
 
 ```bash
-# 依存関係インストール
 uv sync
 cd web && npm install && cd ..
-
-# API キー設定
 echo "GEMINI_API_KEY=your-key-here" > .env
-
-# 起動
 ./start.sh
 ```
 
 ### Configuration
 
-`life.toml` で動作を設定します（全オプションは[下記参照](#configuration-1)）:
+Configure in `life.toml` (all options in the [Configuration section](#configuration-1) below):
 
 ```toml
 [llm]
@@ -221,16 +216,16 @@ interval_sec = 30
 enabled = true
 ```
 
-`data/context.md` にユーザー情報を書くと、LLM が名前・環境・習慣を踏まえた分析を行います。
+Add user context to `data/context.md` so the AI can reference your name, environment, and habits in its analysis.
 
 ### Running
 
 ```bash
-./start.sh          # デーモン + Web UI を同時起動
+./start.sh       # Start daemon + web UI together
 
-life start          # デーモンのみ（フォアグラウンド）
-life start -d       # デーモンのみ（バックグラウンド）
-cd web && npm run dev    # Web UI（開発モード）
+life start       # Daemon only (foreground)
+life start -d    # Daemon only (background)
+cd web && npm run dev    # Web UI (dev mode)
 ```
 
 - Web UI: http://localhost:3001
