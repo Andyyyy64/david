@@ -1,11 +1,10 @@
 appId: ai.homelife.app
 productName: homelife.ai
 
-# Entry point (compiled from web/electron/main.ts)
 directories:
-  buildResources: web/electron/build
-  output: release
-  app: web
+  buildResources: electron/build
+  output: ../release
+  app: .
 
 files:
   - electron/dist/**
@@ -14,21 +13,25 @@ files:
   - node_modules/**
   - package.json
 
+# Unpack native modules from ASAR so they can be loaded at runtime
+asarUnpack:
+  - "node_modules/better-sqlite3/**"
+
 mac:
   category: public.app-category.productivity
-  icon: web/electron/build/icon.png
+  icon: electron/build/icon.png
   target:
     - target: dmg
       arch: [x64, arm64]
 
 win:
-  icon: web/electron/build/icon.ico
+  icon: electron/build/icon.ico
   target:
     - target: nsis
       arch: [x64]
 
 linux:
-  icon: web/electron/build/icon.png
+  icon: electron/build/icon.png
   target:
     - target: AppImage
 

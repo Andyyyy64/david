@@ -1,0 +1,121 @@
+name: Build & Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build-mac:
+    runs-on: macos-latest
+    strategy:
+      matrix:
+        arch: [x64, arm64]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install dependencies
+        working-directory: web
+        run: npm ci
+
+      - name: Build frontend
+        working-directory: web
+        run: npm run build
+
+      - name: Compile Electron main
+        working-directory: web
+        run: npm run electron:compile
+
+      - name: Build Mac DMG (${{ matrix.arch }})
+        working-directory: web
+        run: npx electron-builder --mac --arch ${{ matrix.arch }} --publish never
+
+      - name: Upload DMG
+        uses: actions/upload-artifact@v4
+        with:
+          name: mac-${{ matrix.arch }}
+          path: release/*.dmg
+
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install dependencies
+        working-directory: web
+        run: npm ci
+
+      - name: Build frontend
+        working-directory: web
+        run: npm run build
+
+      - name: Compile Electron main
+        working-directory: web
+        run: npm run electron:compile
+
+      - name: Build Windows installer
+        working-directory: web
+        run: npx electron-builder --win --publish never
+
+      - name: Upload installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-x64
+          path: release/*.exe
+
+  release:
+    needs: [build-mac, build-windows]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: artifacts/*
+          prerelease: true
+          generate_release_notes: true
+          body: |
+            ## homelife.ai ${{ github.ref_name }}
+
+            Personal AI life monitor — camera, screen, audio capture with LLM analysis.
+
+            ### Downloads
+            | Platform | File |
+            |---|---|
+            | macOS (Apple Silicon) | `*-arm64.dmg` |
+            | macOS (Intel) | `*.dmg` (without arm64) |
+            | Windows 10/11 | `*.exe` (NSIS installer) |
+
+            ### Requirements
+            Before launching, clone the repo and set up the Python environment:
+            ```bash
+            git clone https://github.com/${{ github.repository }} homelife.ai
+            cd homelife.ai
+            uv sync
+            echo "GEMINI_API_KEY=your-key" > .env
+            ```
+            On first launch the app will ask you to select the repository folder.
+
+            ### macOS note
+            The app is unsigned. Right-click the DMG → Open to bypass Gatekeeper.
+
+            ### Windows note
+            Windows SmartScreen may warn about the unsigned installer. Click "More info" → "Run anyway".
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

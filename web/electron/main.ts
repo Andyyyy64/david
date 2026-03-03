@@ -1,7 +1,7 @@
 import { app, BrowserWindow, Tray, Menu, shell, nativeImage, dialog } from 'electron'
 import { spawn, ChildProcess } from 'child_process'
 import { createConnection } from 'net'
-import { existsSync, readFileSync } from 'fs'
+import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'fs'
 import path from 'path'
 
 // Pass `--dev` to load the Vite dev server (http://localhost:5173) instead of Hono
@@ -21,13 +21,12 @@ function resolveRepoRoot(): string {
     const configPath = path.join(app.getPath('userData'), 'config.json')
     if (existsSync(configPath)) {
       const cfg = JSON.parse(readFileSync(configPath, 'utf8'))
-      if (typeof cfg.repoPath === 'string') return cfg.repoPath
+      if (typeof cfg.repoPath === 'string' && cfg.repoPath) return cfg.repoPath
     }
   } catch { /* app.getPath may fail before ready on some platforms */ }
 
   if (app.isPackaged) {
-    // Packaged: assume repo is a few levels up from resources/app
-    return path.join(WEB_DIR, '..', '..', '..', '..')
+    return '' // needs first-run setup
   }
   // Development: web/ is inside the repo
   return path.join(WEB_DIR, '..')
@@ -37,7 +36,7 @@ function resolveRepoRoot(): string {
 // Set HOMELIFE_WSL2_BRIDGE=1 in the environment to enable this mode.
 const IS_WSL2_BRIDGE = process.env.HOMELIFE_WSL2_BRIDGE === '1'
 
-const REPO_ROOT = resolveRepoRoot()
+let REPO_ROOT = resolveRepoRoot()
 
 let mainWindow: BrowserWindow | null = null
 let tray: Tray | null = null
@@ -56,6 +55,52 @@ function getPythonPath(): string {
 function getTsxPath(): string {
   const bin = process.platform === 'win32' ? 'tsx.cmd' : 'tsx'
   return path.join(WEB_DIR, 'node_modules', '.bin', bin)
+}
+
+// ── First-run setup ──────────────────────────────────────────────────────────
+
+async function firstRunSetup(): Promise<string | null> {
+  const { response } = await dialog.showMessageBox({
+    type: 'info',
+    title: 'homelife.ai — Setup',
+    message: 'Welcome to homelife.ai!\n\nSelect the folder where you cloned the repository and ran "uv sync".',
+    buttons: ['Select Folder', 'Quit'],
+    defaultId: 0,
+    cancelId: 1,
+  })
+  if (response === 1) return null
+
+  const result = await dialog.showOpenDialog({
+    title: 'Select homelife.ai repository folder',
+    properties: ['openDirectory'],
+  })
+  if (result.canceled || result.filePaths.length === 0) return null
+
+  const repoPath = result.filePaths[0]
+  const binDir = process.platform === 'win32' ? 'Scripts' : 'bin'
+  const pyBin = process.platform === 'win32' ? 'python.exe' : 'python'
+  const pythonBin = path.join(repoPath, '.venv', binDir, pyBin)
+
+  if (!existsSync(pythonBin)) {
+    await dialog.showMessageBox({
+      type: 'error',
+      title: 'Python environment not found',
+      message: `Could not find Python at:\n${pythonBin}\n\nPlease run "uv sync" in the selected folder first, then try again.`,
+      buttons: ['OK'],
+    })
+    return firstRunSetup() // retry
+  }
+
+  // Save to userData/config.json
+  try {
+    const userDataPath = app.getPath('userData')
+    mkdirSync(userDataPath, { recursive: true })
+    writeFileSync(path.join(userDataPath, 'config.json'), JSON.stringify({ repoPath }, null, 2))
+  } catch (e) {
+    console.error('Failed to save config:', e)
+  }
+
+  return repoPath
 }
 
 // ── Port readiness check ─────────────────────────────────────────────────────
@@ -248,6 +293,13 @@ function createTray() {
 // ── App lifecycle ─────────────────────────────────────────────────────────────
 
 app.whenReady().then(async () => {
+  // Packaged app with no repo configured → show first-run setup dialog
+  if (app.isPackaged && !REPO_ROOT && !IS_WSL2_BRIDGE) {
+    const chosen = await firstRunSetup()
+    if (!chosen) { app.quit(); return }
+    REPO_ROOT = chosen
+  }
+
   startDaemon()
   startWebServer()
   createTray()
