@@ -1,8 +1,17 @@
 # homelife.ai
 
+[![CI](https://github.com/Andyyyy64/homelife.ai/actions/workflows/ci.yml/badge.svg)](https://github.com/Andyyyy64/homelife.ai/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Version](https://img.shields.io/badge/version-0.1.0-green.svg)](https://github.com/Andyyyy64/homelife.ai/releases)
+[![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey.svg)]()
+
 [English](README.md) | **日本語**
 
 日常生活を自動記録し、監視・管理・分析を可能にするパーソナルAIシステム。
+
+<p align="center">
+  <img src="docs/screenshots/dashboard.png" alt="Dashboard" width="700" />
+</p>
 
 ## ビジョン
 
