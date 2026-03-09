@@ -3,10 +3,10 @@
 from __future__ import annotations
 
 import logging
+from pathlib import Path
 
 import cv2
 import numpy as np
-from pathlib import Path
 
 log = logging.getLogger(__name__)
 

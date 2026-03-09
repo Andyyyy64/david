@@ -1,10 +1,9 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import date, datetime
+from datetime import date
 
 from daemon.storage.database import Database
-from daemon.storage.models import SCALES
 
 
 @dataclass

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import base64
+import contextlib
 import logging
 import os
 import time
@@ -140,10 +141,8 @@ class GeminiProvider(LLMProvider):
             return ""
         finally:
             if uploaded_name:
-                try:
+                with contextlib.suppress(Exception):
                     client.files.delete(name=uploaded_name)
-                except Exception:
-                    pass
 
     @retry_on_transient_error
     def _transcribe_with_retry(self, client, uploaded, prompt: str) -> str:

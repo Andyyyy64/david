@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import contextlib
 import logging
 import sqlite3
 import subprocess
@@ -96,10 +97,8 @@ class WindowMonitor:
         """Stop monitoring."""
         self._running = False
         if self._process:
-            try:
+            with contextlib.suppress(Exception):
                 self._process.terminate()
-            except Exception:
-                pass
 
     def current(self) -> tuple[str, str]:
         """Get current (process_name, window_title)."""

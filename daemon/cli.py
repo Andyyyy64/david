@@ -5,7 +5,7 @@ import os
 import signal
 import subprocess
 import sys
-from datetime import date, datetime, timedelta
+from datetime import date, datetime
 from pathlib import Path
 
 import click
@@ -127,9 +127,9 @@ def status(ctx):
     else:
         console.print("[red]● Daemon stopped[/red]")
 
+    from daemon.capture.audio import AudioCapture
     from daemon.capture.frame_store import FrameStore
     from daemon.capture.screen import ScreenCapture
-    from daemon.capture.audio import AudioCapture
     store = FrameStore(config.data_dir)
     screen_store = ScreenCapture(config.data_dir)
     audio_store = AudioCapture(config.data_dir)
@@ -193,6 +193,7 @@ def look(ctx):
     """Capture a frame and have homelife.ai analyze it right now."""
     config: Config = ctx.obj["config"]
 
+    from daemon.analysis.scene import SceneAnalyzer
     from daemon.analyzer import FrameAnalyzer
     from daemon.capture.camera import Camera
     from daemon.capture.frame_store import FrameStore
@@ -200,7 +201,6 @@ def look(ctx):
     from daemon.llm import create_provider
     from daemon.storage.database import Database
     from daemon.storage.models import Frame
-    from daemon.analysis.scene import SceneAnalyzer
 
     camera = Camera(config.capture)
     if not camera.open():
@@ -229,7 +229,7 @@ def look(ctx):
     console.print(f"[green]Camera:[/green]  {config.data_dir / rel_path}")
     if screen_path:
         console.print(f"[green]Screen:[/green]  {config.data_dir / screen_path}")
-    console.print(f"[dim]Analyzing...[/dim]")
+    console.print("[dim]Analyzing...[/dim]")
 
     provider = create_provider(
         config.llm.provider,
@@ -677,7 +677,7 @@ def cleanup(ctx, days: int | None):
     db.close()
 
     freed_mb = result["freed_bytes"] / (1024 * 1024)
-    console.print(f"[green]Cleanup complete:[/green]")
+    console.print("[green]Cleanup complete:[/green]")
     console.print(f"  Frames deleted:       {result['frames_deleted']}")
     console.print(f"  Summaries deleted:    {result['summaries_deleted']}")
     console.print(f"  Events deleted:       {result['events_deleted']}")
@@ -689,5 +689,5 @@ def cleanup(ctx, days: int | None):
 def _parse_date(s: str) -> date:
     try:
         return date.fromisoformat(s)
-    except ValueError:
-        raise click.BadParameter(f"Invalid date: {s} (expected YYYY-MM-DD)")
+    except ValueError as e:
+        raise click.BadParameter(f"Invalid date: {s} (expected YYYY-MM-DD)") from e

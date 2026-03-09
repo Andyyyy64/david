@@ -2,10 +2,9 @@ from __future__ import annotations
 
 import json
 import logging
+from datetime import date as date_type
 from datetime import datetime, timedelta
 from pathlib import Path
-
-from datetime import date as date_type
 
 from daemon.activity import ActivityManager
 from daemon.llm.base import LLMProvider

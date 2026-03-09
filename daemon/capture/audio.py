@@ -171,7 +171,6 @@ class AudioCapture:
         """Record using sounddevice (CoreAudio on Mac, WASAPI on Windows)."""
         try:
             import sounddevice as sd
-            import numpy as np
         except ImportError:
             log.warning("sounddevice not installed. Run: pip install sounddevice")
             return False
@@ -203,7 +202,6 @@ class AudioCapture:
     def _capture_alsa(self, filepath: Path, duration_sec: int) -> bool:
         """Record using arecord (ALSA) for Linux/WSL2."""
         try:
-            import grp
             cmd = [
                 "arecord",
                 "-D", self._alsa_device,

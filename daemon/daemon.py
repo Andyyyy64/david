@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import contextlib
 import json
 import logging
 import os
@@ -12,29 +13,29 @@ from pathlib import Path
 
 import cv2
 
+from daemon.activity import ActivityManager
 from daemon.analysis.change import ChangeDetector
 from daemon.analysis.motion import MotionDetector
 from daemon.analysis.pose import PoseDetector
 from daemon.analysis.presence import PresenceDetector
 from daemon.analysis.scene import SceneAnalyzer
 from daemon.analysis.transcribe import Transcriber
-from daemon.activity import ActivityManager
 from daemon.analyzer import FrameAnalyzer, SummaryGenerator
-from daemon.knowledge import KnowledgeGenerator
-from daemon.report import ReportGenerator
 from daemon.capture.audio import AudioCapture
 from daemon.capture.camera import Camera
 from daemon.capture.frame_store import FrameStore
 from daemon.capture.screen import ScreenCapture
 from daemon.capture.window import WindowMonitor
+from daemon.chat.manager import ChatManager
 from daemon.config import Config
+from daemon.knowledge import KnowledgeGenerator
 from daemon.live import LiveServer
 from daemon.llm import create_provider
-from daemon.chat.manager import ChatManager
 from daemon.notify import send_notification
+from daemon.report import ReportGenerator
 from daemon.retention import cleanup_old_data
 from daemon.storage.database import Database
-from daemon.storage.models import Event, Frame, SceneType, SCALES
+from daemon.storage.models import SCALES, Event, Frame, SceneType
 
 CHANGE_CHECK_INTERVAL = 1  # seconds between change checks
 
@@ -227,10 +228,8 @@ class Daemon:
                               len(self._extra_screen_paths), path)
             else:
                 # No change — delete the file
-                try:
+                with contextlib.suppress(OSError):
                     abs_path.unlink()
-                except OSError:
-                    pass
 
         threading.Thread(target=_do_check, daemon=True).start()
 

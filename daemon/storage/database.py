@@ -1,10 +1,11 @@
 from __future__ import annotations
 
+import contextlib
 import sqlite3
-from datetime import datetime, date, timedelta
+from datetime import date, datetime, timedelta
 from pathlib import Path
 
-from .models import Frame, Event, Summary, Report, ChatMessage, SceneType
+from .models import ChatMessage, Event, Frame, Report, SceneType, Summary
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS frames (
@@ -191,7 +192,7 @@ class Database:
     def _ensure_fts(self):
         """Create FTS tables, recreating if schema changed."""
         # Check if frames_fts exists and has the expected columns
-        try:
+        with contextlib.suppress(Exception):
             row = self._conn.execute(
                 "SELECT sql FROM sqlite_master WHERE type='table' AND name='frames_fts'"
             ).fetchone()
@@ -199,8 +200,6 @@ class Database:
                 # Schema changed — drop and recreate
                 self._conn.execute("DROP TABLE IF EXISTS frames_fts")
                 self._conn.commit()
-        except Exception:
-            pass
         self._conn.executescript(MIGRATE_FTS)
 
     def _rebuild_fts_if_needed(self):
@@ -227,14 +226,12 @@ class Database:
         if row:
             if is_update:
                 # Delete old entry before re-inserting
-                try:
+                with contextlib.suppress(Exception):
                     self._conn.execute(
                         "INSERT INTO frames_fts(frames_fts, rowid, claude_description, transcription, activity, foreground_window) "
                         "VALUES('delete', ?, ?, ?, ?, ?)",
                         (frame_id, row["claude_description"] or "", row["transcription"] or "", row["activity"] or "", row["foreground_window"] or ""),
                     )
-                except Exception:
-                    pass
             self._conn.execute(
                 "INSERT INTO frames_fts(rowid, claude_description, transcription, activity, foreground_window) VALUES(?, ?, ?, ?, ?)",
                 (frame_id, row["claude_description"] or "", row["transcription"] or "", row["activity"] or "", row["foreground_window"] or ""),
@@ -749,7 +746,7 @@ class Database:
             activity=row["activity"] or "",
             screen_extra_paths=row["screen_extra_paths"] or "",
             foreground_window=row["foreground_window"] or "",
-            pose_data=row["pose_data"] if "pose_data" in row.keys() else "",
+            pose_data=row["pose_data"] if "pose_data" in row else "",  # noqa: SIM401 - sqlite3.Row has no .get()
         )
 
     @staticmethod

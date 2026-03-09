@@ -174,15 +174,15 @@ class PoseDetector:
 
         # Cache pixel-space points for overlay drawing
         self._cached_points = [
-            (int(l.x * w), int(l.y * h), l.visibility) for l in landmarks
+            (int(lm_pt.x * w), int(lm_pt.y * h), lm_pt.visibility) for lm_pt in landmarks
         ]
 
         PL = mp.tasks.vision.PoseLandmark
 
         def lm(idx: int):
             """Get (x, y, visibility) for a landmark index."""
-            l = landmarks[idx]
-            return l.x * w, l.y * h, l.visibility
+            pt = landmarks[idx]
+            return pt.x * w, pt.y * h, pt.visibility
 
         # Extract key points
         nose_x, nose_y, nose_v = lm(PL.NOSE)
@@ -223,17 +223,11 @@ class PoseDetector:
 
         if not hip_visible:
             # Hips not visible (typical webcam at desk) — infer from upper body only
-            if abs(head_tilt) > 20:
-                posture = "leaning"
-            else:
-                posture = "sitting"  # most likely for webcam
+            posture = "leaning" if abs(head_tilt) > 20 else "sitting"
         elif torso_ratio < 0.08:
             posture = "lying" if shoulder_mid_y > h * 0.5 else "unknown"
         elif torso_ratio < 0.25:
-            if abs(head_tilt) > 20:
-                posture = "leaning"
-            else:
-                posture = "sitting"
+            posture = "leaning" if abs(head_tilt) > 20 else "sitting"
         else:
             posture = "standing"
 

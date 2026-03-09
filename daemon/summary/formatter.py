@@ -3,7 +3,6 @@ from __future__ import annotations
 from datetime import date
 
 from rich.console import Console
-from rich.panel import Panel
 from rich.table import Table
 
 from daemon.summary.timeline import TimelineBuilder

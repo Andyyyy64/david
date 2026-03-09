@@ -10,7 +10,6 @@ import re
 import subprocess
 import sys
 
-
 # ── Camera ────────────────────────────────────────────────────────────────────
 
 def _cameras_linux() -> list[dict]:
@@ -65,7 +64,7 @@ def _cameras_windows() -> list[dict]:
             ["powershell", "-NoProfile", "-Command", ps_cmd],
             capture_output=True, text=True, timeout=8,
         )
-        names = [l.strip() for l in result.stdout.splitlines() if l.strip()]
+        names = [line.strip() for line in result.stdout.splitlines() if line.strip()]
         if names:
             return [{"index": i, "name": n} for i, n in enumerate(names)]
     except Exception:

@@ -70,14 +70,15 @@ class ClaudeProvider(LLMProvider):
             ) as err_f:
                 out_path, err_path = out_f.name, err_f.name
 
-            result = subprocess.run(
-                [claude, "-p", prompt, "--model", self._model],
-                stdin=subprocess.DEVNULL,
-                stdout=open(out_path, "w"),
-                stderr=open(err_path, "w"),
-                timeout=timeout,
-                env=_clean_env(),
-            )
+            with open(out_path, "w") as out_fh, open(err_path, "w") as err_fh:
+                result = subprocess.run(
+                    [claude, "-p", prompt, "--model", self._model],
+                    stdin=subprocess.DEVNULL,
+                    stdout=out_fh,
+                    stderr=err_fh,
+                    timeout=timeout,
+                    env=_clean_env(),
+                )
 
             stdout = Path(out_path).read_text().strip()
             stderr = Path(err_path).read_text().strip()
@@ -88,8 +89,8 @@ class ClaudeProvider(LLMProvider):
                 raise RuntimeError(f"claude exit code {result.returncode}: {stderr[:200]}")
             return stdout if stdout else None
 
-        except subprocess.TimeoutExpired:
-            raise RuntimeError(f"claude timeout after {timeout}s")
+        except subprocess.TimeoutExpired as exc:
+            raise RuntimeError(f"claude timeout after {timeout}s") from exc
         finally:
             if out_path:
                 Path(out_path).unlink(missing_ok=True)

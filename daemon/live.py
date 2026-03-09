@@ -3,8 +3,7 @@ from __future__ import annotations
 import json
 import logging
 import threading
-import time
-from http.server import HTTPServer, BaseHTTPRequestHandler
+from http.server import BaseHTTPRequestHandler, HTTPServer
 from socketserver import ThreadingMixIn
 
 log = logging.getLogger(__name__)
