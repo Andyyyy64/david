@@ -1,4 +1,5 @@
 import { app, BrowserWindow, Tray, Menu, shell, nativeImage, dialog } from 'electron'
+import { autoUpdater } from 'electron-updater'
 import { spawn, ChildProcess, execFileSync } from 'child_process'
 import { createConnection } from 'net'
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'fs'
@@ -276,6 +277,36 @@ function createTray() {
   tray.on('double-click', () => { mainWindow?.show(); mainWindow?.focus() })
 }
 
+// ── Auto-update ──────────────────────────────────────────────────────────
+
+function setupAutoUpdater() {
+  if (isDev || !app.isPackaged) return
+
+  autoUpdater.autoDownload = true
+  autoUpdater.autoInstallOnAppQuit = true
+
+  autoUpdater.on('update-available', (info) => {
+    console.log(`[updater] Update available: v${info.version}`)
+  })
+
+  autoUpdater.on('update-downloaded', (info) => {
+    dialog.showMessageBox({
+      type: 'info',
+      title: 'Update Ready',
+      message: `v${info.version} has been downloaded. It will be installed when you quit the app.`,
+      buttons: ['Restart Now', 'Later'],
+    }).then(({ response }) => {
+      if (response === 0) autoUpdater.quitAndInstall()
+    })
+  })
+
+  autoUpdater.on('error', (err) => {
+    console.error('[updater] Error:', err.message)
+  })
+
+  autoUpdater.checkForUpdatesAndNotify()
+}
+
 // ── App lifecycle ─────────────────────────────────────────────────────────────
 
 app.whenReady().then(async () => {
@@ -292,6 +323,7 @@ app.whenReady().then(async () => {
   startWebServer()
   createTray()
   await createWindow()
+  setupAutoUpdater()
 
   app.on('activate', () => {
     mainWindow ? (mainWindow.show(), mainWindow.focus()) : createWindow()

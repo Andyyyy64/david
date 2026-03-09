@@ -40,6 +40,11 @@ linux:
   target:
     - target: AppImage
 
+publish:
+  provider: github
+  owner: homelife-ai
+  repo: homelife.ai
+
 nsis:
   oneClick: false
   allowToChangeInstallationDirectory: true
