@@ -1,0 +1,95 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  lint-python:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+      - run: uv tool install ruff
+      - run: ruff check daemon/
+      - run: ruff format --check daemon/
+
+  lint-web:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: web/package-lock.json
+      - working-directory: web
+        run: npm ci
+      - name: TypeScript type check
+        working-directory: web
+        run: npx tsc --noEmit --skipLibCheck
+      - name: Build frontend
+        working-directory: web
+        run: npm run build
+
+  test-python:
+    runs-on: ubuntu-latest
+    needs: lint-python
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+      - run: uv sync --dev
+      - name: Run tests with coverage
+        run: uv run pytest tests/ -v --cov=daemon --cov-report=term-missing
+
+  test-web:
+    runs-on: ubuntu-latest
+    needs: lint-web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: web/package-lock.json
+      - working-directory: web
+        run: npm ci
+      - name: Run tests with coverage
+        working-directory: web
+        run: npx vitest run --coverage
+
+  security-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: web/package-lock.json
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+      - name: npm audit
+        working-directory: web
+        run: npm audit --audit-level=high || true
+      - name: pip audit
+        run: |
+          uv sync --dev
+          uv run pip-audit || true
+
+  docker-build:
+    runs-on: ubuntu-latest
+    needs: [test-python, test-web]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build daemon image
+        run: docker build -f Dockerfile.daemon -t test-daemon .
+      - name: Build web image
+        run: docker build -f Dockerfile.web -t test-web .
