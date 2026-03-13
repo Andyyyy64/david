@@ -31,7 +31,7 @@
   "header": {
     "chat": "Chat",
     "dashboard": "Dashboard",
-    "export": "Export CSV",
+    "data": "Data",
     "theme_light": "Light",
     "theme_dark": "Dark"
   },
@@ -191,6 +191,31 @@
     "suggestion1": "What did I do today?",
     "suggestion2": "What do I do most often?",
     "suggestion3": "Summarize yesterday's activity"
+  },
+  "data": {
+    "title": "Data",
+    "overview": "Overview",
+    "tables": "Tables",
+    "export": "Export",
+    "import": "Import",
+    "exportHint": "Export all data as CSV or JSON.",
+    "importHint": "Import CSV data from another device. Duplicate records are skipped.",
+    "all": "All",
+    "importCsv": "Import",
+    "importing": "Importing...",
+    "importSuccess": "Imported {{imported}} rows ({{skipped}} skipped)",
+    "dbSize": "Database size",
+    "dateRange": "Recording period",
+    "totalRecords": "Total records",
+    "table_frames": "Frames",
+    "table_summaries": "Summaries",
+    "table_events": "Events",
+    "table_chat_messages": "Chat messages",
+    "table_memos": "Memos",
+    "table_reports": "Reports",
+    "table_activity_mappings": "Activity mappings",
+    "table_window_events": "Window events",
+    "table_knowledge": "Knowledge"
   },
   "activity": {
     "focus": "Focus",

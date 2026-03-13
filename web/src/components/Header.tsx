@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { LiveFeed } from './LiveFeed';
 import { LOCALE_MAP } from '../i18n';
@@ -10,6 +10,7 @@ interface Props {
   frameCount: number;
   onDashboardClick: () => void;
   onChatClick: () => void;
+  onDataClick: () => void;
   theme: 'light' | 'dark';
   onThemeToggle: () => void;
 }
@@ -23,32 +24,24 @@ function useClock() {
   return now;
 }
 
-export function Header({ date, onDateChange, availableDates, frameCount, onDashboardClick, onChatClick, theme, onThemeToggle }: Props) {
+export function Header({ date, onDateChange, availableDates, frameCount, onDashboardClick, onChatClick, onDataClick, theme, onThemeToggle }: Props) {
   const { t, i18n } = useTranslation();
   const now = useClock();
   const locale = LOCALE_MAP[i18n.language] || LOCALE_MAP[i18n.language.split('-')[0]] || 'en-US';
-
-  const handleExport = useCallback(() => {
-    const url = `/api/export/frames?date=${date}&format=csv`;
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `frames-${date}.csv`;
-    a.click();
-  }, [date]);
 
   return (
     <header className="header">
       <div className="header-left">
         <img src="/favicon.ico" alt="homelife.ai" className="header-logo" onClick={() => window.location.reload()} />
         <span className="header-count">{t('common.frames_count', { count: frameCount })}</span>
-        <button className="dashboard-btn" onClick={onChatClick}>
-          {t('header.chat')}
-        </button>
         <button className="dashboard-btn" onClick={onDashboardClick}>
           {t('header.dashboard')}
         </button>
-        <button className="dashboard-btn" onClick={handleExport} title={t('header.export')}>
-          {t('header.export')}
+        <button className="dashboard-btn" onClick={onChatClick}>
+          {t('header.chat')}
+        </button>
+        <button className="dashboard-btn" onClick={onDataClick}>
+          {t('header.data')}
         </button>
       </div>
       <div className="header-center">

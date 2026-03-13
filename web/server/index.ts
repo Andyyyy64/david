@@ -20,6 +20,7 @@ import chatRoutes from './routes/chat.js';
 import settingsRoutes from './routes/settings.js';
 import devicesRoutes from './routes/devices.js';
 import exportRoutes from './routes/export.js';
+import dataRoutes from './routes/data.js';
 import ragRoutes from './routes/rag.js';
 
 const app = new Hono();
@@ -92,6 +93,7 @@ app.route('/api/chat', chatRoutes);
 app.route('/api/settings', settingsRoutes);
 app.route('/api/devices', devicesRoutes);
 app.route('/api/export', exportRoutes);
+app.route('/api/data', dataRoutes);
 app.route('/api/rag', ragRoutes);
 
 // User context (data/context.md) — read/write

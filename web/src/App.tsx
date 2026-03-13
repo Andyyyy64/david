@@ -12,6 +12,7 @@ import { RagChat } from './components/RagChat';
 const Dashboard = lazy(() => import('./components/Dashboard').then(m => ({ default: m.Dashboard })));
 const Settings = lazy(() => import('./components/Settings').then(m => ({ default: m.Settings })));
 const ChatModal = lazy(() => import('./components/ChatPanel').then(m => ({ default: m.ChatModal })));
+const DataModal = lazy(() => import('./components/DataModal').then(m => ({ default: m.DataModal })));
 const Onboarding = lazy(() => import('./components/Onboarding').then(m => ({ default: m.Onboarding })));
 import { useFrames } from './hooks/useFrames';
 import { useSummaries } from './hooks/useSummaries';
@@ -50,6 +51,7 @@ export default function App() {
   const [availableDates, setAvailableDates] = useState<string[]>([]);
   const [showDashboard, setShowDashboard] = useState(false);
   const [showChat, setShowChat] = useState(false);
+  const [showData, setShowData] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(() => localStorage.getItem('homelife_onboarded') !== '1');
   const [highlightRange, setHighlightRange] = useState<SummaryTimeRange | null>(null);
@@ -187,6 +189,7 @@ export default function App() {
         frameCount={stats?.frames ?? 0}
         onDashboardClick={() => setShowDashboard(true)}
         onChatClick={() => setShowChat(true)}
+        onDataClick={() => setShowData(true)}
         theme={theme}
         onThemeToggle={toggleTheme}
       />
@@ -264,6 +267,7 @@ export default function App() {
       <Suspense fallback={null}>
         {showDashboard && <Dashboard date={date} onClose={() => setShowDashboard(false)} />}
         {showChat && <ChatModal date={date} onClose={() => setShowChat(false)} />}
+        {showData && <DataModal onClose={() => setShowData(false)} />}
         {showSettings && <Settings onClose={() => setShowSettings(false)} />}
         {showOnboarding && (
           <Onboarding
