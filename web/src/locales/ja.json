@@ -139,7 +139,8 @@
     "apiKeys": {
       "title": "API キー",
       "storedIn": "（.env に保存）",
-      "hint": "空欄のままにすると現在の値が維持されます。新しい値は <code>.env</code> に書き込まれます。"
+      "hint": "空欄のままにすると現在の値が維持されます。新しい値は <code>.env</code> に書き込まれます。",
+      "notSet": "未設定"
     }
   },
   "liveFeed": {

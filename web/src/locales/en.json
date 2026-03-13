@@ -139,7 +139,8 @@
     "apiKeys": {
       "title": "API keys",
       "storedIn": "(stored in .env)",
-      "hint": "Leave blank to keep the current value. New values are written to <code>.env</code>."
+      "hint": "Leave blank to keep the current value. New values are written to <code>.env</code>.",
+      "notSet": "Not set"
     }
   },
   "liveFeed": {

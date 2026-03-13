@@ -358,9 +358,9 @@ export function Settings({ onClose }: Props) {
                     <label>{key}</label>
                     <div className="settings-secret-row">
                       <input
-                        type={visible ? 'text' : 'password'}
+                        type={visible || !current ? 'text' : 'password'}
                         value={current}
-                        placeholder={masked || ''}
+                        placeholder={masked || t('settings.apiKeys.notSet')}
                         onChange={(e) => setEnvInputs((p) => ({ ...p, [key]: e.target.value }))}
                         autoComplete="off"
                       />
