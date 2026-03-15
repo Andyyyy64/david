@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import shutil
 import subprocess
 import sys
 from datetime import datetime
@@ -8,8 +9,23 @@ from pathlib import Path
 
 log = logging.getLogger(__name__)
 
-# PowerShell script template for Windows screen capture from WSL2
-_PS_SCRIPT = r"""
+# PowerShell script: save to Windows temp file, output the path
+_PS_SCRIPT_TEMP = r"""
+Add-Type -AssemblyName System.Windows.Forms
+Add-Type -AssemblyName System.Drawing
+$bounds = [System.Windows.Forms.Screen]::PrimaryScreen.Bounds
+$bitmap = New-Object System.Drawing.Bitmap($bounds.Width, $bounds.Height)
+$graphics = [System.Drawing.Graphics]::FromImage($bitmap)
+$graphics.CopyFromScreen($bounds.Location, [System.Drawing.Point]::Empty, $bounds.Size)
+$tmpFile = [System.IO.Path]::GetTempFileName() -replace '\.tmp$','.png'
+$bitmap.Save($tmpFile)
+$graphics.Dispose()
+$bitmap.Dispose()
+Write-Output $tmpFile
+"""
+
+# PowerShell script for native Windows (save directly)
+_PS_SCRIPT_DIRECT = r"""
 Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName System.Drawing
 $bounds = [System.Windows.Forms.Screen]::PrimaryScreen.Bounds
@@ -21,10 +37,6 @@ $graphics.Dispose()
 $bitmap.Dispose()
 """
 
-
-def _wsl_to_unc(posix_path: str) -> str:
-    """Convert WSL2 absolute path to UNC path for Windows access."""
-    return r"\\wsl.localhost\Ubuntu" + posix_path
 
 
 class ScreenCapture:
@@ -76,7 +88,7 @@ class ScreenCapture:
 
     def _capture_windows(self, filepath: Path) -> str | None:
         """Capture screen on native Windows using PowerShell directly."""
-        script = _PS_SCRIPT.format(path=str(filepath))
+        script = _PS_SCRIPT_DIRECT.format(path=str(filepath))
         try:
             result = subprocess.run(
                 ["powershell", "-NoProfile", "-Command", script],
@@ -106,12 +118,10 @@ class ScreenCapture:
             return None
 
     def _capture_wsl(self, filepath: Path) -> str | None:
-        """Capture Windows screen from WSL2 using PowerShell."""
-        unc_path = _wsl_to_unc(str(filepath.resolve()))
-        script = _PS_SCRIPT.format(path=unc_path)
+        """Capture Windows screen from WSL2 via PowerShell temp file."""
         try:
             result = subprocess.run(
-                ["powershell.exe", "-NoProfile", "-Command", script],
+                ["powershell.exe", "-NoProfile", "-Command", _PS_SCRIPT_TEMP],
                 capture_output=True,
                 text=True,
                 encoding="utf-8",
@@ -121,9 +131,21 @@ class ScreenCapture:
             if result.returncode != 0:
                 log.warning("Screen capture failed: %s", result.stderr[:200])
                 return None
-            if not filepath.exists():
-                log.warning("Screenshot file not created: %s", filepath)
+            win_tmp = result.stdout.strip()
+            if not win_tmp:
+                log.warning("Screen capture returned no temp path")
                 return None
+            # Convert Windows path to WSL path and copy
+            wsl_tmp = subprocess.run(
+                ["wslpath", win_tmp],
+                capture_output=True,
+                text=True,
+                timeout=5,
+            ).stdout.strip()
+            if not wsl_tmp or not Path(wsl_tmp).exists():
+                log.warning("Temp screenshot not found: %s", wsl_tmp)
+                return None
+            shutil.move(wsl_tmp, filepath)
             rel_path = str(filepath.relative_to(self._data_dir))
             log.debug("Screen captured (wsl): %s", rel_path)
             return rel_path
