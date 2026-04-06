@@ -3,17 +3,12 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "main": "electron/dist/main.cjs",
   "scripts": {
-    "dev": "concurrently -k \"tsx watch server/index.ts\" \"vite\"",
+    "dev": "vite",
     "dev:server": "tsx watch server/index.ts",
-    "dev:client": "vite",
+    "dev:full": "concurrently -k \"tsx watch server/index.ts\" \"vite\"",
     "build": "vite build",
     "start": "NODE_ENV=production tsx server/index.ts",
-    "electron:compile": "esbuild electron/main.ts --bundle --platform=node --format=cjs --outfile=electron/dist/main.cjs --external:electron && esbuild electron/preload.ts --bundle --platform=node --format=cjs --outfile=electron/dist/preload.cjs --external:electron",
-    "electron:dev": "npm run electron:compile && concurrently -k \"vite\" \"wait-on http://localhost:5173 && electron . --dev\"",
-    "electron:start": "npm run electron:compile && electron .",
-    "electron:build": "vite build && npm run electron:compile && electron-builder",
     "tauri:dev": "tauri dev",
     "tauri:build": "tauri build",
     "test": "vitest run"
@@ -25,7 +20,6 @@
     "@tauri-apps/plugin-shell": "^2.3.5",
     "@tauri-apps/plugin-updater": "^2.10.1",
     "better-sqlite3": "^11",
-    "electron-updater": "^6.8.3",
     "hono": "^4",
     "i18next": "^25.8.14",
     "i18next-browser-languagedetector": "^8.2.1",
@@ -46,14 +40,10 @@
     "@vitejs/plugin-react": "^4",
     "@vitest/coverage-v8": "^4.0.18",
     "concurrently": "^9",
-    "electron": "^33",
-    "electron-builder": "^25",
-    "esbuild": "^0.24",
     "jsdom": "^28.1.0",
     "tsx": "^4",
     "typescript": "^5",
     "vite": "^6",
-    "vitest": "^4.0.18",
-    "wait-on": "^8"
+    "vitest": "^4.0.18"
   }
 }
