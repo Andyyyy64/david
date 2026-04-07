@@ -39,7 +39,9 @@
     "noCameraAndMic": "Running without camera and microphone",
     "noCamera": "Running without camera",
     "noMic": "Running without microphone",
-    "daemonNotRunning": "Daemon is not running"
+    "daemonNotRunning": "Daemon is not running",
+    "apiKeyRequired": "API key (GEMINI_API_KEY) not set — enter it in Settings",
+    "profileRecommended": "Profile is empty — fill it in Settings to improve AI analysis"
   },
   "detail": {
     "selectFrame": "Select a frame",
@@ -141,10 +143,6 @@
       "storedIn": "(stored in DB)",
       "hint": "Leave blank to keep the current value.",
       "notSet": "Not set"
-    },
-    "warnings": {
-      "apiKeyRequired": "LLM API key (GEMINI_API_KEY) is not set. Enter an API key to enable AI analysis.",
-      "profileRecommended": "Profile is empty. Filling it in improves AI analysis accuracy."
     }
   },
   "liveFeed": {

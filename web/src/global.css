@@ -1754,6 +1754,7 @@ pre {
   align-items: center;
   justify-content: center;
   padding: var(--space-xl);
+  overscroll-behavior: contain;
 }
 
 .settings-modal {
@@ -1805,6 +1806,7 @@ pre {
 
 .settings-body {
   overflow-y: auto;
+  overscroll-behavior: contain;
   flex: 1;
   padding: var(--space-md) var(--space-lg);
   display: flex;
@@ -2461,7 +2463,7 @@ pre {
   color: var(--text-secondary);
   font-size: 16px;
   cursor: pointer;
-  z-index: 200;
+  z-index: 50;
   display: flex;
   align-items: center;
   justify-content: center;

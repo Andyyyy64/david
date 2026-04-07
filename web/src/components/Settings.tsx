@@ -61,13 +61,9 @@ export function Settings({ onClose }: Props) {
   );
   useEffect(() => {
     window.addEventListener('keydown', handleEsc);
-    // Prevent background scroll while modal is open
-    document.body.style.overflow = 'hidden';
-    return () => {
-      window.removeEventListener('keydown', handleEsc);
-      document.body.style.overflow = '';
-    };
+    return () => window.removeEventListener('keydown', handleEsc);
   }, [handleEsc]);
+
 
   function setLlm<K extends keyof SettingsData['llm']>(k: K, v: SettingsData['llm'][K]) {
     setData((d) => d ? { ...d, llm: { ...d.llm, [k]: v } } : d);
@@ -115,10 +111,6 @@ export function Settings({ onClose }: Props) {
   const cams = devices?.cameras ?? [];
   const mics = devices?.audio ?? [];
 
-  // Check for missing API key (at least one LLM key required)
-  const needsApiKey = data && !data.env_masked.GEMINI_API_KEY;
-  const needsProfile = !context.trim();
-
   const toggleLang = () => {
     i18n.changeLanguage(i18n.language === 'ja' ? 'en' : 'ja');
   };
@@ -141,22 +133,6 @@ export function Settings({ onClose }: Props) {
           <div className="settings-loading">{error || t('common.loading')}</div>
         ) : (
           <div className="settings-body">
-
-            {/* ── Warnings ── */}
-            {(needsApiKey || needsProfile) && (
-              <div className="settings-warnings">
-                {needsApiKey && (
-                  <div className="settings-warning">
-                    {t('settings.warnings.apiKeyRequired')}
-                  </div>
-                )}
-                {needsProfile && (
-                  <div className="settings-warning">
-                    {t('settings.warnings.profileRecommended')}
-                  </div>
-                )}
-              </div>
-            )}
 
             {/* ── Profile (context.md) ── */}
             <section className="settings-section">
@@ -188,26 +164,11 @@ export function Settings({ onClose }: Props) {
             <section className="settings-section">
               <h3 className="settings-section-title">{t('settings.llm.title')}</h3>
               <div className="settings-field">
-                <label>{t('settings.llm.provider')}</label>
-                <select value={data.llm.provider} onChange={(e) => setLlm('provider', e.target.value)}>
-                  <option value="gemini">Gemini</option>
-                  <option value="claude">Claude</option>
-                </select>
-              </div>
-              <div className="settings-field">
                 <label>{t('settings.llm.geminiModel')}</label>
                 <input
                   value={data.llm.gemini_model}
                   onChange={(e) => setLlm('gemini_model', e.target.value)}
                   placeholder="gemini-3.1-flash-lite-preview"
-                />
-              </div>
-              <div className="settings-field">
-                <label>{t('settings.llm.claudeModel')}</label>
-                <input
-                  value={data.llm.claude_model}
-                  onChange={(e) => setLlm('claude_model', e.target.value)}
-                  placeholder="haiku"
                 />
               </div>
             </section>

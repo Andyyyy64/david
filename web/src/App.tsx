@@ -84,13 +84,23 @@ export default function App() {
   useEffect(() => {
     loadActivityMappings().catch(console.error);
     api.stats.dates().then(setAvailableDates).catch(console.error);
-    api.status().then((s) => {
+    Promise.all([
+      api.status(),
+      api.settings.get() as Promise<{ env_masked: Record<string, string> }>,
+      api.context.get().catch(() => ({ content: '' })),
+    ]).then(([s, settings, ctx]) => {
       const w: string[] = [];
       if (!s.camera && !s.mic) {
         w.push('warnings.noCameraAndMic');
       } else {
         if (!s.camera) w.push('warnings.noCamera');
         if (!s.mic) w.push('warnings.noMic');
+      }
+      if (!settings.env_masked?.GEMINI_API_KEY) {
+        w.push('warnings.apiKeyRequired');
+      }
+      if (!ctx.content?.trim()) {
+        w.push('warnings.profileRecommended');
       }
       setWarnings(w);
     }).catch(() => {
@@ -149,7 +159,7 @@ export default function App() {
   // Scroll navigation: scroll down = next frame, scroll up = previous
   const handleWheel = useCallback(
     (e: WheelEvent) => {
-      if (showDashboard || showChat) return;
+      if (showDashboard || showChat || showSettings || showData) return;
       if (!selectedFrame || frames.length === 0) return;
       // Ignore if scrolling inside a scrollable element
       const target = e.target as HTMLElement;
@@ -163,7 +173,7 @@ export default function App() {
         setSelectedFrame(frames[idx - 1]);
       }
     },
-    [selectedFrame, frames, showDashboard, showChat],
+    [selectedFrame, frames, showDashboard, showChat, showSettings, showData],
   );
 
   useEffect(() => {
