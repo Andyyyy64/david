@@ -13,3 +13,4 @@ web/src-tauri/target/
 web/src-tauri/gen/
 release/
 docs/superpowers/
+.superpowers/
