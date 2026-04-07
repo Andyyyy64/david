@@ -1,8 +1,8 @@
-# david
+# vida
 
-[![CI](https://github.com/Andyyyy64/david/actions/workflows/ci.yml/badge.svg)](https://github.com/Andyyyy64/david/actions/workflows/ci.yml)
+[![CI](https://github.com/Andyyyy64/vida/actions/workflows/ci.yml/badge.svg)](https://github.com/Andyyyy64/vida/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-0.1.0-green.svg)](https://github.com/Andyyyy64/david/releases)
+[![Version](https://img.shields.io/badge/version-0.1.0-green.svg)](https://github.com/Andyyyy64/vida/releases)
 [![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey.svg)]()
 
 **English** | [日本語](README.ja.md)
@@ -19,8 +19,8 @@ A personal AI that quietly watches your day-to-day life, remembers everything, a
 
 ```powershell
 # 1. Clone and install
-git clone https://github.com/Andyyyy64/david.git
-cd david
+git clone https://github.com/Andyyyy64/vida.git
+cd vida
 uv sync
 cd web; npm install; cd ..
 
@@ -40,8 +40,8 @@ cd web; npm run electron:start
 
 ```bash
 # 1. Clone and install
-git clone https://github.com/Andyyyy64/david.git
-cd david
+git clone https://github.com/Andyyyy64/vida.git
+cd vida
 uv sync
 cd web && npm install && cd ..
 
@@ -60,8 +60,8 @@ cd web && npm run electron:start
 <summary><b>Linux / WSL2</b></summary>
 
 ```bash
-git clone https://github.com/Andyyyy64/david.git
-cd david
+git clone https://github.com/Andyyyy64/vida.git
+cd vida
 uv sync
 cd web && npm install && cd ..
 echo "GEMINI_API_KEY=your-key-here" > .env
