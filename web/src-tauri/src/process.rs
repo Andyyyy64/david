@@ -44,11 +44,10 @@ impl DaemonProcess {
         let child = Command::new(python_bin)
             .arg("-m")
             .arg("daemon")
-            .arg("run")
-            .arg("--data-dir")
-            .arg(data_dir)
-            .current_dir(daemon_src.parent().unwrap_or(daemon_src))
-            .env("HOMELIFE_CONFIG_DIR", config_dir)
+            .arg("start")
+            .current_dir(config_dir)
+            .env("PYTHONPATH", daemon_src)
+            .env("DATA_DIR", data_dir)
             .spawn()
             .map_err(|e| format!("Failed to start daemon: {e}"))?;
 

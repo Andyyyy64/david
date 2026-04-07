@@ -3,7 +3,7 @@
   "identifier": "ai.homelife.app",
   "version": "0.1.0",
   "build": {
-    "beforeDevCommand": "npm run dev:client",
+    "beforeDevCommand": "npm run dev",
     "devUrl": "http://localhost:5173",
     "beforeBuildCommand": "npm run build",
     "frontendDist": "../dist"
