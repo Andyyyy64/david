@@ -138,7 +138,26 @@ class AudioCapture:
         else:
             # sounddevice device name (substring match). Empty = system default.
             self._alsa_device = ""
-            self._sd_device = device or None
+            self._sd_device = self._resolve_sd_device(device) if device else None
+
+    @staticmethod
+    def _resolve_sd_device(device: str) -> int | str | None:
+        """Resolve a device name to an index to avoid duplicate-name errors on Windows.
+
+        On Windows, the same physical device appears under multiple host APIs
+        (MME, DirectSound, WASAPI).  sounddevice raises ValueError when a
+        substring matches more than one.  We pick the first input device whose
+        name contains the given string.
+        """
+        try:
+            import sounddevice as sd
+
+            for i, d in enumerate(sd.query_devices()):
+                if d["max_input_channels"] > 0 and device in d["name"]:
+                    return i
+        except Exception:
+            pass
+        return device  # fall back to original string
 
     def is_available(self) -> bool:
         """Check if an audio capture device is available."""
