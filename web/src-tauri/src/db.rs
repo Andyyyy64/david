@@ -12,6 +12,7 @@ pub struct AppDb {
     pub conn: Mutex<Connection>,
     pub data_dir: PathBuf,
     pub config_dir: PathBuf,
+    pub daemon_src: PathBuf,
     mappings_cache: Mutex<Option<(HashMap<String, String>, Instant)>>,
 }
 
@@ -22,7 +23,7 @@ impl AppDb {
     ///
     /// Also ensures the `memos` table exists so that memo commands work even
     /// when the daemon has never run.
-    pub fn new(data_dir: PathBuf, config_dir: PathBuf) -> Result<Self, String> {
+    pub fn new(data_dir: PathBuf, config_dir: PathBuf, daemon_src: PathBuf) -> Result<Self, String> {
         let db_path = data_dir.join("life.db");
         let conn = Connection::open(&db_path).map_err(|e| format!("Failed to open DB: {e}"))?;
 
@@ -129,6 +130,7 @@ impl AppDb {
             conn: Mutex::new(conn),
             data_dir,
             config_dir,
+            daemon_src,
             mappings_cache: Mutex::new(None),
         };
 

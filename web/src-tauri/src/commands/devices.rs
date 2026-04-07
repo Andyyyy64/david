@@ -1,24 +1,12 @@
-use std::path::PathBuf;
-use std::process::Command;
-
+use crate::db::AppDb;
 use crate::python;
-
-fn get_repo_root() -> PathBuf {
-    if let Ok(p) = std::env::var("HOMELIFE_DAEMON_SRC") {
-        return PathBuf::from(p);
-    }
-    let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    manifest_dir
-        .parent()
-        .and_then(|p| p.parent())
-        .unwrap_or(&manifest_dir)
-        .to_path_buf()
-}
+use std::process::Command;
+use tauri::State;
 
 #[tauri::command]
-pub async fn get_devices() -> Result<serde_json::Value, String> {
-    let repo_root = get_repo_root();
-    let python = match python::find_python(&repo_root) {
+pub async fn get_devices(db: State<'_, AppDb>) -> Result<serde_json::Value, String> {
+    let repo_root = &db.config_dir;
+    let python = match python::find_python(repo_root) {
         Ok(p) => p,
         Err(e) => {
             return Ok(serde_json::json!({
@@ -29,13 +17,13 @@ pub async fn get_devices() -> Result<serde_json::Value, String> {
         }
     };
 
-    let daemon_src = &repo_root;
+    let daemon_src = &db.daemon_src;
     let script = daemon_src.join("daemon").join("devices.py");
 
     let output = Command::new(&python)
         .arg(&script)
-        .current_dir(&daemon_src)
-        .env("PYTHONPATH", &daemon_src)
+        .current_dir(daemon_src)
+        .env("PYTHONPATH", daemon_src)
         .output()
         .map_err(|e| format!("Failed to run device enumeration: {e}"))?;
 

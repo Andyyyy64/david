@@ -29,11 +29,13 @@ fn resolve_paths(app: &tauri::App) -> (PathBuf, PathBuf, PathBuf, PathBuf) {
         let config_dir = repo_root.clone();
         let python_bin = python::find_python(&repo_root)
             .unwrap_or_else(|_| PathBuf::from("python"));
-        let daemon_src = repo_root.join("daemon");
+        let daemon_src = repo_root;
 
         (data_dir, config_dir, python_bin, daemon_src)
     } else {
-        // Packaged mode
+        // Packaged mode:
+        //   resource_dir — contains bundled daemon/, pyproject.toml, uv.lock
+        //   app_data_dir — persistent user data: data/, .venv
         let app_data = app
             .path()
             .app_data_dir()
@@ -45,8 +47,60 @@ fn resolve_paths(app: &tauri::App) -> (PathBuf, PathBuf, PathBuf, PathBuf) {
 
         let data_dir = app_data.join("data");
         let config_dir = app_data.clone();
-        let python_bin = resource_dir.join("python3");
-        let daemon_src = resource_dir.join("daemon");
+        // daemon source is bundled inside resource_dir
+        let daemon_src = resource_dir.clone();
+        // Python: check app_data .venv first, then system
+        let python_bin = python::find_python(&app_data)
+            .unwrap_or_else(|_| PathBuf::from("python"));
+
+        // Auto-setup: create .venv in app_data if missing
+        let venv_marker = if cfg!(windows) {
+            app_data.join(".venv").join("Scripts").join("python.exe")
+        } else {
+            app_data.join(".venv").join("bin").join("python")
+        };
+        if !venv_marker.exists() {
+            eprintln!("First launch: setting up Python environment...");
+            let pyproject = resource_dir.join("pyproject.toml");
+            let uvlock = resource_dir.join("uv.lock");
+            if pyproject.exists() {
+                // Copy pyproject.toml and uv.lock to app_data for uv sync
+                let _ = std::fs::copy(&pyproject, app_data.join("pyproject.toml"));
+                if uvlock.exists() {
+                    let _ = std::fs::copy(&uvlock, app_data.join("uv.lock"));
+                }
+                // Try uv sync first, fall back to pip
+                let uv_result = std::process::Command::new("uv")
+                    .arg("sync")
+                    .current_dir(&app_data)
+                    .status();
+                match uv_result {
+                    Ok(s) if s.success() => {
+                        eprintln!("Python environment ready (uv sync)");
+                    }
+                    _ => {
+                        eprintln!("uv not found or failed; trying pip...");
+                        let _ = std::process::Command::new("python")
+                            .args(["-m", "venv", ".venv"])
+                            .current_dir(&app_data)
+                            .status();
+                        let pip_bin = if cfg!(windows) {
+                            app_data.join(".venv").join("Scripts").join("pip.exe")
+                        } else {
+                            app_data.join(".venv").join("bin").join("pip")
+                        };
+                        let _ = std::process::Command::new(&pip_bin)
+                            .args(["install", "-r", "pyproject.toml"])
+                            .current_dir(&app_data)
+                            .status();
+                    }
+                }
+            }
+        }
+
+        // Re-resolve python after potential venv creation
+        let python_bin = python::find_python(&app_data)
+            .unwrap_or(python_bin);
 
         (data_dir, config_dir, python_bin, daemon_src)
     }
@@ -68,7 +122,7 @@ pub fn run() {
             })?;
 
             // Open database
-            let db = AppDb::new(data_dir.clone(), config_dir.clone())
+            let db = AppDb::new(data_dir.clone(), config_dir.clone(), daemon_src.clone())
                 .map_err(|e| format!("DB init failed: {e}"))?;
             app.manage(db);
 
