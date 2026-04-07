@@ -80,31 +80,14 @@ export function DataModal({ onClose }: Props) {
   }, [handleEsc]);
 
   async function handleExport(table: string, format: 'csv' | 'json' = 'csv') {
-    try {
-      const content = await api.data.exportTable(table, format);
-      // If result is a string, create a download from it
-      if (typeof content === 'string') {
-        const blob = new Blob([content], { type: format === 'json' ? 'application/json' : 'text/csv' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `${table}-all.${format}`;
-        a.click();
-        URL.revokeObjectURL(url);
-      } else {
-        // Fallback: direct download link (browser mode may return non-string)
-        const a = document.createElement('a');
-        a.href = `/api/data/export/${table}?format=${format}`;
-        a.download = `${table}-all.${format}`;
-        a.click();
-      }
-    } catch {
-      // Fallback to direct link for browser mode
-      const a = document.createElement('a');
-      a.href = `/api/data/export/${table}?format=${format}`;
-      a.download = `${table}-all.${format}`;
-      a.click();
-    }
+    const content = await api.data.exportTable(table, format);
+    const blob = new Blob([content], { type: format === 'json' ? 'application/json' : 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${table}-all.${format}`;
+    a.click();
+    URL.revokeObjectURL(url);
   }
 
   function handleExportAll(format: 'csv' | 'json') {
@@ -113,60 +96,8 @@ export function DataModal({ onClose }: Props) {
     });
   }
 
-  async function importOneFile(table: string, file: File): Promise<ImportResult> {
-    // Import is only supported via the Hono API (file uploads).
-    // In Tauri mode this will fail gracefully.
-    const formData = new FormData();
-    formData.append('file', file);
-    const res = await fetch(`/api/data/import/${table}`, {
-      method: 'POST',
-      body: formData,
-    });
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error((err as { error?: string }).error ?? `HTTP ${res.status}`);
-    }
-    return res.json();
-  }
-
   async function handleImport() {
-    const files = fileRef.current?.files;
-    if (!files || files.length === 0) return;
-
-    setImporting(true);
-    setImportResult(null);
-    setImportError('');
-
-    try {
-      let totalImported = 0;
-      let totalSkipped = 0;
-
-      if (importTable === 'all') {
-        // Auto-detect table from filename for each file
-        for (const file of Array.from(files)) {
-          const match = IMPORT_TABLES.find((t) => file.name.toLowerCase().includes(t));
-          if (!match) continue;
-          const result = await importOneFile(match, file);
-          totalImported += result.imported;
-          totalSkipped += result.skipped;
-        }
-      } else {
-        const result = await importOneFile(importTable, files[0]);
-        totalImported = result.imported;
-        totalSkipped = result.skipped;
-      }
-
-      setImportResult({ imported: totalImported, skipped: totalSkipped, total: totalImported + totalSkipped });
-      // Refresh stats
-      (api.data.stats() as Promise<DataStats>)
-        .then(setStats)
-        .catch(() => {});
-    } catch (e) {
-      setImportError(String(e));
-    } finally {
-      setImporting(false);
-      if (fileRef.current) fileRef.current.value = '';
-    }
+    setImportError('CSV import is not yet supported in Tauri mode.');
   }
 
   // Primary stat tables shown with counts
