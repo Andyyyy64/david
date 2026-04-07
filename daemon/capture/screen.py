@@ -38,7 +38,6 @@ $bitmap.Dispose()
 """
 
 
-
 class ScreenCapture:
     def __init__(self, data_dir: Path):
         self._data_dir = data_dir
