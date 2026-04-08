@@ -192,7 +192,8 @@ export function Settings({ onClose }: Props) {
         {!data ? (
           <div className="settings-loading">{error || t('common.loading')}</div>
         ) : (
-          <fieldset className="settings-body settings-body-fieldset" disabled={isDemo}>
+          <div className="settings-body">
+          <fieldset className="settings-body-fieldset" disabled={isDemo}>
 
             {/* ── Profile (context.md) ── */}
             <section className="settings-section">
@@ -418,6 +419,7 @@ export function Settings({ onClose }: Props) {
             </section>
 
           </fieldset>
+          </div>
         )}
 
         <div className="settings-footer">
