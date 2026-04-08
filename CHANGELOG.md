@@ -6,8 +6,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-04-08
+
 ### Added
 
+- Interactive web demo with Three.js virtual scene (deployed to Vercel)
+- Runtime abstraction layer decoupling frontend from Tauri IPC
+- Demo mode: read-only Settings/Onboarding, accelerated virtual clock, footer banner
 - i18n localization with Japanese and English language support
 
 ## [0.2.0] - 2026-04-07
