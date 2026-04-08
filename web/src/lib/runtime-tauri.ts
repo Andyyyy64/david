@@ -1,5 +1,6 @@
 import { invoke, convertFileSrc } from '@tauri-apps/api/core';
 import type { Runtime } from './runtime';
+import type { Frame, Report, Memo } from './types';
 
 let dataDir = '';
 
@@ -8,11 +9,11 @@ export async function createTauriRuntime(): Promise<Runtime> {
     api: {
       frames: {
         list: (date) => invoke('get_frames', { date }),
-        latest: () => invoke('get_latest_frame').then((f) => {
+        latest: () => invoke<Frame | null>('get_latest_frame').then((f) => {
           if (!f) throw new Error('No frames');
           return f;
         }),
-        get: (id) => invoke('get_frame', { id }).then((f) => {
+        get: (id) => invoke<Frame | null>('get_frame', { id }).then((f) => {
           if (!f) throw new Error('Frame not found');
           return f;
         }),
@@ -28,7 +29,7 @@ export async function createTauriRuntime(): Promise<Runtime> {
       },
       sessions: (date) => invoke('get_sessions', { date }),
       reports: {
-        get: (date) => invoke('get_report', { date }).then((r) => {
+        get: (date) => invoke<Report | null>('get_report', { date }).then((r) => {
           if (!r) throw new Error('Report not found');
           return r;
         }),
@@ -39,7 +40,7 @@ export async function createTauriRuntime(): Promise<Runtime> {
         mappings: () => invoke('get_activity_mappings'),
       },
       memos: {
-        get: (date) => invoke('get_memo', { date }).then((m) => m ?? { date, content: '', updated_at: null }),
+        get: (date) => invoke<Memo | null>('get_memo', { date }).then((m) => m ?? { date, content: '', updated_at: null }),
         put: (date, content) => invoke('put_memo', { date, content }).then(() => ({ ok: true })),
       },
       context: {
