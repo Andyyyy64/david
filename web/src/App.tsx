@@ -85,7 +85,11 @@ export default function App() {
     if (event.type === 'new_summary') {
       window.dispatchEvent(new CustomEvent('vida:refresh-summaries'));
     }
-  }, []);
+    if (event.type === 'llm_error') {
+      const msg = event.message as string;
+      addToast(`LLM: ${msg}`, 'error');
+    }
+  }, [addToast]);
 
   const { connected: wsConnected } = useWebSocket(
     isDemo ? { autoReconnect: false } : { onEvent: handleWSEvent },

@@ -60,9 +60,9 @@ export async function createTauriRuntime(): Promise<Runtime> {
       return convertFileSrc(`${dataDir}/${relativePath}`.replace(/\\/g, '/'));
     },
     liveFeed: {
-      streamUrl: `${window.location.protocol}//${window.location.hostname}:3002/stream`,
-      poseUrl: `${window.location.protocol}//${window.location.hostname}:3002/stream/pose`,
-      healthUrl: `${window.location.protocol}//${window.location.hostname}:3002/health`,
+      streamUrl: 'http://127.0.0.1:3002/stream',
+      poseUrl: 'http://127.0.0.1:3002/stream/pose',
+      healthUrl: 'http://127.0.0.1:3002/health',
       isLive: true,
     },
     init: async () => {

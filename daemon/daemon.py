@@ -125,6 +125,8 @@ class Daemon:
         self._ws = WebSocketServer(port=3004)
         self._ws.on_message = self._handle_ws_message
 
+        self._consecutive_llm_failures = 0
+
         # Track last summary time per scale
         # Initialize to now so we wait the full interval before first generation
         now = datetime.now()
@@ -493,14 +495,40 @@ class Daemon:
         else:
             all_extra_screens = extra_screens or None
             all_extra_cams = extra_cams or None
-            description, activity = self._frame_analyzer.analyze(
-                frame,
-                all_extra_screens,
-                all_extra_cams,
-                has_face=has_face,
-                pose_data=pose_data,
-                idle_seconds=idle_seconds,
-            )
+            llm_error_msg = ""
+            try:
+                description, activity = self._frame_analyzer.analyze(
+                    frame,
+                    all_extra_screens,
+                    all_extra_cams,
+                    has_face=has_face,
+                    pose_data=pose_data,
+                    idle_seconds=idle_seconds,
+                )
+                if description or activity:
+                    self._consecutive_llm_failures = 0
+                else:
+                    self._consecutive_llm_failures += 1
+                    llm_error_msg = "LLM returned empty response"
+            except Exception as exc:
+                log.exception("LLM analysis failed")
+                description, activity = "", ""
+                self._consecutive_llm_failures += 1
+                llm_error_msg = str(exc)
+
+            if self._consecutive_llm_failures > 0 and self._consecutive_llm_failures <= 3:
+                if "401" in llm_error_msg or "403" in llm_error_msg or "API_KEY" in llm_error_msg:
+                    error_display = "API key is invalid or not set"
+                elif "429" in llm_error_msg or "ResourceExhausted" in llm_error_msg:
+                    error_display = "API rate limit exceeded"
+                else:
+                    error_display = llm_error_msg[:200] if llm_error_msg else "LLM analysis failed"
+                self._ws.broadcast(WSEvent("llm_error", {
+                    "message": error_display,
+                    "consecutive_failures": self._consecutive_llm_failures,
+                    "provider": self._config.llm.provider,
+                }))
+
         if description or activity:
             self._db.update_frame_analysis(frame_id, description, activity)
             log.info("Analysis: [%s] %s", activity, description[:80])
@@ -690,13 +718,15 @@ class Daemon:
         body = f"{report.content}\n\n{report.frame_count} frames | Focus {report.focus_pct:.0f}%"
         send_notification(self._config.notify, title, body)
 
-    def _write_status(self) -> None:
+    def _write_status(self, llm_error: str = "") -> None:
         """Write daemon status to data/status.json for web UI."""
         status = {
             "running": True,
             "camera": self._has_camera,
             "mic": self._has_mic,
             "started_at": datetime.now().isoformat(),
+            "llm_provider": self._config.llm.provider,
+            "llm_error": llm_error,
         }
         status_path = self._config.data_dir / "status.json"
         status_path.write_text(json.dumps(status))
