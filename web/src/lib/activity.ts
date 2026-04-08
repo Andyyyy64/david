@@ -3,7 +3,7 @@
  * labels, and dynamic activity->meta_category mapping from the API.
  */
 
-import { api } from './api';
+import { getRuntime } from './runtime';
 
 export const META_COLORS: Record<string, string> = {
   focus: '#60a860',
@@ -31,7 +31,7 @@ let _mappings: Record<string, string> | null = null;
 
 export async function loadActivityMappings(): Promise<void> {
   try {
-    _mappings = await api.activities.mappings();
+    _mappings = await getRuntime().api.activities.mappings();
   } catch {
     // Silently fail — will use 'other' as fallback
   }
