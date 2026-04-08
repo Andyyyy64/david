@@ -1,0 +1,9 @@
+{
+  "buildCommand": "cd demo && npm install && npm run build",
+  "installCommand": "echo skip",
+  "outputDirectory": "demo/dist",
+  "framework": null,
+  "rewrites": [
+    { "source": "/(.*)", "destination": "/index.html" }
+  ]
+}

@@ -14,3 +14,4 @@ web/src-tauri/gen/
 release/
 docs/superpowers/
 .superpowers/
+.vercel

@@ -1,0 +1,16 @@
+.venv
+.git
+.pytest_cache
+.ruff_cache
+data
+daemon
+tests
+docs
+.github
+.superpowers
+node_modules
+*.pt
+uv.lock
+web/src-tauri
+web/node_modules
+web/dist
