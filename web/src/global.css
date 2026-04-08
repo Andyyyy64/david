@@ -855,6 +855,15 @@ pre {
   background: #0f172a;
 }
 
+.live-image--offline {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 9px;
+  color: var(--text-muted);
+  background: var(--bg-elevated);
+}
+
 .live-image--canvas canvas {
   display: block;
   width: 100% !important;

@@ -5,7 +5,7 @@ import { getRuntime } from '../lib/runtime';
 export function LiveFeed() {
   const { t } = useTranslation();
   const { liveFeed, isDemo } = getRuntime();
-  const [live, setLive] = useState(liveFeed.isLive);
+  const [live, setLive] = useState(false);
   const [expanded, setExpanded] = useState(false);
   const [showPose, setShowPose] = useState(false);
 
@@ -38,7 +38,7 @@ export function LiveFeed() {
     return () => window.removeEventListener('keydown', onKey);
   }, [expanded, handleClose]);
 
-  const label = isDemo ? t('common.demo') : t('common.live');
+  const label = isDemo ? t('common.demo') : live ? t('common.live') : t('common.offline');
 
   if (isDemo) {
     return (
@@ -74,20 +74,22 @@ export function LiveFeed() {
 
   const modalStreamUrl = showPose ? liveFeed.poseUrl : liveFeed.streamUrl;
 
-  if (!live) return null;
-
   return (
     <>
-      <div className="live-feed" onClick={() => setExpanded(true)} style={{ cursor: 'pointer' }}>
-        <div className="live-indicator active">
-          <span className="live-dot" />
+      <div className="live-feed" onClick={() => live ? setExpanded(true) : undefined} style={{ cursor: live ? 'pointer' : 'default' }}>
+        <div className={`live-indicator ${live ? 'active' : ''}`}>
+          <span className={`live-dot ${live ? '' : 'offline'}`} />
           {label}
         </div>
-        <img
-          src={liveFeed.streamUrl!}
-          alt={label}
-          className="live-image"
-        />
+        {live ? (
+          <img
+            src={liveFeed.streamUrl!}
+            alt={label}
+            className="live-image"
+          />
+        ) : (
+          <div className="live-image live-image--offline">{t('liveFeed.cameraOffline')}</div>
+        )}
       </div>
       {expanded && (
         <div className="live-modal-overlay" onClick={handleClose}>

@@ -148,7 +148,8 @@
   },
   "liveFeed": {
     "pose": "ポーズ",
-    "togglePose": "ポーズスケルトンオーバーレイの切り替え"
+    "togglePose": "ポーズスケルトンオーバーレイの切り替え",
+    "cameraOffline": "カメラ未接続"
   },
   "onboarding": {
     "welcome": {

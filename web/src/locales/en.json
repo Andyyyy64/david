@@ -148,7 +148,8 @@
   },
   "liveFeed": {
     "pose": "Pose",
-    "togglePose": "Toggle pose skeleton overlay"
+    "togglePose": "Toggle pose skeleton overlay",
+    "cameraOffline": "Camera offline"
   },
   "onboarding": {
     "welcome": {
