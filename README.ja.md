@@ -6,10 +6,17 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Version](https://img.shields.io/badge/version-0.2.0-green.svg)](https://github.com/Andyyyy64/vida/releases)
 [![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey.svg)]()
+[![Live Demo](https://img.shields.io/badge/Live%20Demo-Open-blue)](https://vida-demo-phi.vercel.app)
 
 [English](README.md) | **日本語**
 
 あなたの日常をそっと見守り、すべてを記憶し、時間の使い方を可視化するパーソナルAI。
+
+### ライブデモ
+
+ブラウザでvidaの模擬セッションを体験できます。デモは実際のUIに生成データと仮想ライブフィードを組み合わせており、カメラやマイクの設定なしで製品を理解できます。
+
+**[デモを開く](https://vida-demo-phi.vercel.app)**
 
 ## クイックスタート
 

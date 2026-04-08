@@ -6,10 +6,17 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Version](https://img.shields.io/badge/version-0.2.0-green.svg)](https://github.com/Andyyyy64/vida/releases)
 [![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey.svg)]()
+[![Live Demo](https://img.shields.io/badge/Live%20Demo-Open-blue)](https://vida-demo-phi.vercel.app)
 
 **English** | [日本語](README.ja.md)
 
 A personal AI that quietly watches your day-to-day life, remembers everything, and helps you understand how you spend your time.
+
+### Live Demo
+
+Experience a simulated vida session in the browser. The demo uses the real UI with generated data and a virtual live feed so you can understand the product without camera or microphone setup.
+
+**[Open Demo](https://vida-demo-phi.vercel.app)**
 
 ## Quick Start
 
