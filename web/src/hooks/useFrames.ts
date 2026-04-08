@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { api } from '../lib/api';
+import { loadActivityMappings } from '../lib/activity';
 import { todayStr } from '../lib/date';
 import { getLiveDataPollInterval } from '../lib/demo-runtime';
 import { getRuntime } from '../lib/runtime';
@@ -18,7 +19,11 @@ export function useFrames(date: string) {
     if (!date) return;
     api.frames
       .list(date)
-      .then(setFrames)
+      .then((f) => {
+        setFrames(f);
+        // Refresh activity→color mappings so new categories get their correct color
+        loadActivityMappings().catch(() => {});
+      })
       .catch(() => {
         addToast(t('errors.fetchFrames'), 'error');
       });
