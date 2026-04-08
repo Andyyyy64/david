@@ -113,7 +113,7 @@ jobs:
           prerelease: false
           generate_release_notes: true
           body: |
-            ## homelife.ai ${{ github.ref_name }} (Tauri)
+            ## vida ${{ github.ref_name }}
 
             Personal AI life monitor — camera, screen, audio capture with LLM analysis.
             Migrated from Electron to Tauri v2 for smaller binaries and native performance.
