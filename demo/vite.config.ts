@@ -8,8 +8,14 @@ export default defineConfig({
   resolve: {
     alias: {
       '@web': path.resolve(__dirname, '../web/src'),
+      // web/src/components/RagChat.tsx imports dompurify; when demo re-uses
+      // that component via the @web alias, node resolution walks up from
+      // web/src/ and never reaches demo/node_modules (web/node_modules is
+      // .vercelignore'd on Vercel). Point the bare specifier at demo's own
+      // copy so the build resolves under both environments.
+      dompurify: path.resolve(__dirname, 'node_modules/dompurify'),
     },
-    dedupe: ['react', 'react-dom', 'react-i18next', 'i18next', 'i18next-browser-languagedetector', 'marked'],
+    dedupe: ['react', 'react-dom', 'react-i18next', 'i18next', 'i18next-browser-languagedetector', 'marked', 'dompurify'],
   },
   build: {
     outDir: 'dist',
