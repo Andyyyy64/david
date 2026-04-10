@@ -132,6 +132,21 @@ pub fn run() {
                 format!("Failed to create data dir {}: {e}", data_dir.display())
             })?;
 
+            // Restrict the asset protocol to the runtime data dir only.
+            // tauri.conf.json ships with an empty scope, so this dynamic
+            // allow is the ONLY way for `convertFileSrc()` to resolve
+            // frame/screen images. Resolving the actual path here covers
+            // both `<repo>/data/` (dev) and `$APPDATA/<id>/data/` (prod)
+            // without ever widening the scope to arbitrary filesystem
+            // paths.
+            {
+                use tauri::Manager;
+                let scope = app.asset_protocol_scope();
+                if let Err(e) = scope.allow_directory(&data_dir, true) {
+                    eprintln!("Warning: failed to allow asset scope: {e}");
+                }
+            }
+
             // Open database
             let db = AppDb::new(data_dir.clone(), config_dir.clone(), daemon_src.clone())
                 .map_err(|e| format!("DB init failed: {e}"))?;

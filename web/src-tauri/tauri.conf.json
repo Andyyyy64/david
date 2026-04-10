@@ -13,14 +13,9 @@
     "security": {
       "assetProtocol": {
         "enable": true,
-        "scope": [
-          "$APPDATA/**",
-          "$APPLOCALDATA/**",
-          "$HOME/.vida/**",
-          "$HOME/.local/share/vida/**"
-        ]
+        "scope": []
       },
-      "csp": "default-src 'self' ipc: http://ipc.localhost; img-src 'self' asset: http://asset.localhost http://127.0.0.1:3002 data:; media-src 'self' asset: http://asset.localhost http://127.0.0.1:3002; connect-src 'self' ipc: http://ipc.localhost http://127.0.0.1:3002 http://127.0.0.1:3003 ws://127.0.0.1:3004; style-src 'self' 'unsafe-inline'; script-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'"
+      "csp": "default-src 'self' ipc: http://ipc.localhost; img-src 'self' asset: http://asset.localhost http://127.0.0.1:3002 data:; media-src 'self' asset: http://asset.localhost http://127.0.0.1:3002; connect-src 'self' ipc: http://ipc.localhost http://127.0.0.1:3002 http://127.0.0.1:3003 ws://127.0.0.1:3004 http://localhost:5173 ws://localhost:5173; style-src 'self' 'unsafe-inline'; script-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'"
     },
     "windows": [
       {

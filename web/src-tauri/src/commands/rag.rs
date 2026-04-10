@@ -12,8 +12,10 @@ fn validate_rag_url(raw: &str) -> Result<reqwest::Url, String> {
     if url.scheme() != "http" && url.scheme() != "https" {
         return Err("RAG_URL must be http(s)".to_string());
     }
+    // reqwest::Url::host_str() returns IPv6 addresses WITHOUT brackets,
+    // so we match the bare `::1` form here, not `[::1]`.
     match url.host_str() {
-        Some("localhost") | Some("127.0.0.1") | Some("::1") | Some("[::1]") => Ok(url),
+        Some("localhost") | Some("127.0.0.1") | Some("::1") => Ok(url),
         Some(other) => Err(format!("RAG_URL host must be loopback, got {other}")),
         None => Err("RAG_URL missing host".to_string()),
     }
