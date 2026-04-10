@@ -1138,6 +1138,8 @@ def status_json(ctx):
         "pid": pid,
         "data_dir": str(config.data_dir.resolve()),
         "db_path": str(config.db_path.resolve()),
+        "llm_provider": config.llm.provider,
+        "ws_port": 3004,
     }
 
     if config.db_path.exists():

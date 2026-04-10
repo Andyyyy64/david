@@ -1,62 +1,110 @@
 ---
 name: vida-connect
-description: Use when the user asks to connect to vida, start analysis, or monitor their activity. This skill makes Claude Code act as vida's AI brain.
+description: Use when the user asks to connect to vida, watch their activity, or have Claude Code act as vida's AI brain. Works with any LLM provider — automatically switches between observer mode (gemini/claude) and analysis mode (external).
 ---
 
-# vida Connect — Automatic Analysis Mode
+# vida Connect
 
-You are connecting to vida, a personal life observer daemon. Your job is to act as its AI brain: analyze captured frames, classify activities, and generate summaries — automatically and continuously.
+You are connecting to vida, a personal life observer daemon running on the local machine. What you actually do after connecting depends on which LLM provider the daemon is configured for. **Do not assume analysis mode** — always run Step 1 first.
 
-## Step 1: Verify daemon is running
+## Step 1: Check the daemon and pick a mode
 
 ```bash
 vida status-json
 ```
 
-Check the output:
-- `"running": true` → proceed
-- `"running": false` → tell the user to start the daemon first (`vida start` or launch the Tauri app)
-- Note the `data_dir` — all image paths are relative to it
+Expected fields:
 
-## Step 2: Process pending backlog
+- `running`: must be `true`. If `false`, tell the user to start the daemon (`vida start` or launch the Tauri app) and stop here.
+- `llm_provider`: drives everything below.
+  - `"external"` → **Analysis mode.** You are the AI brain. Jump to the [Analysis mode](#analysis-mode) section.
+  - anything else (`"gemini"`, `"claude"`, …) → **Observer mode.** The daemon is already running its own analysis. Jump to the [Observer mode](#observer-mode) section.
+- `data_dir`: every image path in WebSocket events is relative to this.
+- `ws_port`: the WebSocket port (default `3004`).
 
-Before starting the live loop, clear any unanalyzed frames:
+Report the mode to the user in one short line before entering the loop, e.g.:
+
+> Connected to vida (provider=gemini, data_dir=/home/andy/.../data). Entering observer mode.
+
+## Observer mode
+
+**Use when `llm_provider != "external"`.** The daemon is handling frame analysis itself. Your job is to stay attached, keep an eye on what the user is doing, and answer questions on demand. **Do not** analyze frames or call `frames-update` in this mode — you would be duplicating work the daemon already did.
+
+### Live loop
+
+Run this loop. Each iteration blocks until either an event arrives or the timeout fires.
+
+```bash
+vida watch --type frame_analyzed --timeout 300
+```
+
+What to do with each result:
+
+- **Got a `frame_analyzed` event.** Note the `frame_id`, `activity`, and `description[:200]`. Keep a light in-memory rolling log of the last ~10 events so you can answer "what was I just doing?" without hitting the DB. Do not print every frame to the user — stay quiet unless they ask.
+- **Timeout (no events for 5 minutes).** Run `vida status-json` again to verify the daemon is still alive. If `running` is still `true`, loop. If it's `false`, tell the user and stop.
+
+Also watch for `llm_error` events on the same stream — if the daemon is hitting rate limits or auth errors, surface the scrubbed message to the user immediately:
+
+```bash
+vida watch --type llm_error --timeout 1
+```
+
+(Run this opportunistically, not every iteration — once every ~5 iterations is fine.)
+
+### When the user asks a question
+
+You have the full vida CLI available. Use it instead of guessing from the rolling log whenever precision matters:
+
+| Question | Command |
+| --- | --- |
+| "What was I doing at 2pm?" | `vida search "..."` or `vida frames-list 2026-04-11 \| jq 'map(select(.timestamp \| contains("T14")))'` |
+| "How much time did I spend coding today?" | `vida activity-stats` |
+| "Show me today's summary" | `vida summary-list` |
+| "Find when I was on Discord" | `vida search "Discord"` |
+| "What's my focus score?" | Compute from `vida activity-stats` meta-category breakdown |
+
+Keep answers short and cite the frame IDs or timestamps so the user can open the frame in the UI.
+
+## Analysis mode
+
+**Use only when `llm_provider == "external"`.** The daemon has disabled its own LLM and is broadcasting `analyze_request` events over WebSocket. You are the AI brain — read images, classify activities, send results back, repeat.
+
+### Step 2: Process pending backlog
+
+Before entering the live loop, clear any unanalyzed frames:
 
 ```bash
 vida frames-pending --limit 10
 ```
 
-For each pending frame, run the **Analysis Cycle** below. If there are many (>20), process the most recent 20 and skip older ones.
+For each pending frame, run the [Analysis cycle](#analysis-cycle) below. If there are many (>20), process the most recent 20 and skip the rest.
 
-## Step 3: Live analysis loop
-
-Enter a continuous loop. Repeat until the user tells you to stop:
+### Step 3: Live analysis loop
 
 ```
 ┌─→ vida watch --type analyze_request --timeout 120
 │   (blocks until next frame or timeout)
 │
-│   If timeout → run vida watch again (daemon may be idle)
-│   If event received ↓
+│   timeout → loop back (daemon may be idle)
+│   event received ↓
 │
-├─→ **Analysis Cycle** (see below)
+├─→ Analysis cycle
 │
-├─→ Every 10 frames: check if summaries need generation (see vida-summarize skill)
+├─→ Every 10 frames: check if summaries need generation (see vida-summarize)
 │
 └── Loop back to watch
 ```
 
-## Analysis Cycle
+### Analysis cycle
 
 For each frame that needs analysis:
 
-### 1. Read the frame data
+**1. Read the event payload.**
 
-The `analyze_request` event contains:
 ```json
 {
   "frame_id": 123,
-  "image_paths": ["frames/2026-04-08/14-30-00.jpg", "screens/2026-04-08/14-30-00.png"],
+  "image_paths": ["frames/2026-04-11/14-30-00.jpg", "screens/2026-04-11/14-30-00.png"],
   "data_dir": "/absolute/path/to/data",
   "transcription": "...",
   "foreground_window": "Code.exe|main.py - vida",
@@ -66,40 +114,21 @@ The `analyze_request` event contains:
 }
 ```
 
-### 2. Read the images
+**2. Read the images.** Use the Read tool on `<data_dir>/<image_paths[0]>` (camera) and `<data_dir>/<image_paths[1]>` (screen).
 
-Use the Read tool to view the camera and screen images:
-- Camera: `<data_dir>/<image_paths[0]>` — shows the user physically
-- Screen: `<data_dir>/<image_paths[1]>` — shows what's on their monitor
+**3. Classify.** Produce three fields:
 
-### 3. Analyze
+- **Description** — 1–2 sentences in Japanese. Continuous log tone; don't re-introduce the user each time. Reference `transcription` and `foreground_window` for context.
+- **Activity** — short Japanese category name. Use existing categories when possible (`vida activity-stats` to see them). Common: `プログラミング`, `ブラウジング`, `動画視聴`, `休憩`, `食事`, `睡眠`, `不在`, `チャット`.
+- **Meta-category** — exactly one of: `focus`, `communication`, `entertainment`, `browsing`, `break`, `idle`.
 
-Look at both images together and determine:
+**Priority rules.**
 
-**Description** (1-2 sentences, Japanese):
-- What is the user doing right now?
-- This is a continuous log — don't describe the person as a stranger each time
-- Reference the transcription and foreground window for context
+- Physical state beats screen content. User lying down with code on screen → `break`, not `focus`.
+- `idle_seconds >= 300` → likely `idle`.
+- `has_face == false` + idle screen → `idle`.
 
-**Activity** (short Japanese category name):
-- Use existing categories when possible (check with `vida activity-stats` on first run)
-- Common: プログラミング, ブラウジング, 動画視聴, 休憩, 食事, 睡眠, 不在, チャット
-- Only create new categories if nothing fits
-
-**Meta-category** (exactly one of):
-- `focus` — coding, studying, writing, deep work
-- `communication` — chat, meetings, calls
-- `entertainment` — videos, games, social media
-- `browsing` — web browsing, research
-- `break` — rest, eating, stretching
-- `idle` — absent, sleeping, AFK
-
-**Priority rule: physical state > screen content.**
-If the user is lying down but screen shows code → `break`, not `focus`.
-If `idle_seconds >= 300` → likely `idle` (absent/AFK).
-If `has_face = false` and screen is idle → `idle`.
-
-### 4. Send results
+**4. Send the result.**
 
 ```bash
 vida frames-update <frame_id> \
@@ -108,12 +137,16 @@ vida frames-update <frame_id> \
   --meta-category "focus"
 ```
 
-Then immediately go back to watching for the next frame.
+Immediately loop back to the watch command.
 
-## Important Notes
+### Important notes (analysis mode only)
 
-- **Speed matters.** Each analysis should take seconds, not minutes. The daemon captures every 30s.
-- **Don't ask the user** for each frame. This is autonomous. Just analyze and update.
-- **Be consistent.** Use the same activity names across frames. Check existing categories first.
-- **Errors are OK.** If you can't read an image or something fails, skip that frame and continue.
-- **Summaries.** Every ~10 frames, check if 10m/30m/1h summaries need generation (see vida-summarize skill).
+- **Speed matters.** Each cycle should take seconds, not minutes. The daemon captures every 30 s.
+- **Don't ask the user** for each frame. This is autonomous — analyze and update silently.
+- **Be consistent.** Use the same activity names across frames.
+- **Errors are OK.** If a read fails, skip and continue.
+- **Summaries.** Every ~10 frames, check whether 10 m / 30 m / 1 h summaries need generation (see vida-summarize skill).
+
+## Stopping
+
+When the user says to disconnect, stop watching and exit the loop. No cleanup is needed — the WebSocket closes automatically.
