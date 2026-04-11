@@ -112,9 +112,7 @@ def test_ask_rejects_bad_host(rag_server):
 
 def test_ask_rejects_bad_origin(rag_server):
     srv, _ = rag_server
-    status, _, _ = _request(
-        srv._port, "/ask", origin="http://evil.com", body=_ask_body("x")
-    )
+    status, _, _ = _request(srv._port, "/ask", origin="http://evil.com", body=_ask_body("x"))
     assert status == 403
 
 
@@ -187,9 +185,7 @@ def test_unknown_path_returns_404(rag_server):
 
 def test_options_ok_with_allowed_origin(rag_server):
     srv, _ = rag_server
-    status, headers, _ = _request(
-        srv._port, "/ask", method="OPTIONS", origin="http://127.0.0.1:5173"
-    )
+    status, headers, _ = _request(srv._port, "/ask", method="OPTIONS", origin="http://127.0.0.1:5173")
     assert status == 204
     assert headers.get("access-control-allow-origin") == "http://127.0.0.1:5173"
     assert headers.get("vary", "").lower() == "origin"
@@ -197,7 +193,44 @@ def test_options_ok_with_allowed_origin(rag_server):
 
 def test_options_rejects_bad_origin(rag_server):
     srv, _ = rag_server
-    status, _, _ = _request(
-        srv._port, "/ask", method="OPTIONS", origin="http://evil.com"
-    )
+    status, _, _ = _request(srv._port, "/ask", method="OPTIONS", origin="http://evil.com")
     assert status == 403
+
+
+# ── hot-reload: stop() must release the socket so restart succeeds ─────────
+
+
+def test_stop_then_start_same_port_succeeds(free_port):
+    """Regression: hot-reloading the LLM provider rebuilds RagServer on the
+    same port. Before the fix, ``stop()`` only called ``shutdown()`` without
+    ``server_close()``, so the listening socket leaked and the next bind
+    raised ``OSError: Address already in use``.
+    """
+    from unittest.mock import MagicMock, patch
+
+    from daemon import rag_server as rag_module
+    from tests.e2e.conftest import _StubRagEngine, _wait_for_port
+
+    with patch.object(rag_module, "RagEngine", lambda _cfg: _StubRagEngine()):
+        config = MagicMock()
+        srv1 = rag_module.RagServer(config, port=free_port)
+        srv1.start()
+        _wait_for_port(free_port)
+
+        # First server works.
+        status, _, _ = _request(free_port, "/ask", body=_ask_body("one"))
+        assert status == 200
+
+        # Stop must fully release the socket.
+        srv1.stop()
+
+        # Immediately rebind on the same port — this is the hot-reload path.
+        srv2 = rag_module.RagServer(config, port=free_port)
+        srv2.start()
+        try:
+            _wait_for_port(free_port)
+            status, _, body = _request(free_port, "/ask", body=_ask_body("two"))
+            assert status == 200
+            assert b"stub: two" in body
+        finally:
+            srv2.stop()

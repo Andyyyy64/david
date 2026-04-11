@@ -29,22 +29,36 @@ class RagServer:
         self._config = config
         self._engine: RagEngine | None = None
         self._httpd: _ThreadedHTTPServer | None = None
+        self._thread: threading.Thread | None = None
 
     def start(self) -> None:
+        # Bind the socket synchronously so stop() can reliably see _httpd and
+        # so hot-reload can tell immediately if port 3003 is still busy.
         self._engine = RagEngine(self._config)
-        thread = threading.Thread(target=self._serve, daemon=True)
-        thread.start()
+        handler_cls = self._build_handler(self._engine)
+        self._httpd = _ThreadedHTTPServer(("127.0.0.1", self._port), handler_cls)
+        self._thread = threading.Thread(target=self._httpd.serve_forever, daemon=True, name="rag-server")
+        self._thread.start()
         log.info("RAG server on port %d", self._port)
 
     def stop(self) -> None:
-        if self._httpd:
+        # shutdown() stops serve_forever; server_close() actually releases the
+        # listening socket so a subsequent start() on the same port succeeds
+        # (allow_reuse_address only covers TIME_WAIT, not an in-use socket).
+        if self._httpd is not None:
             self._httpd.shutdown()
-        if self._engine:
+        if self._thread is not None:
+            self._thread.join(timeout=5)
+            self._thread = None
+        if self._httpd is not None:
+            self._httpd.server_close()
+            self._httpd = None
+        if self._engine is not None:
             self._engine.close()
+            self._engine = None
 
-    def _serve(self) -> None:
-        engine = self._engine
-
+    @staticmethod
+    def _build_handler(engine: RagEngine) -> type[BaseHTTPRequestHandler]:
         class Handler(BaseHTTPRequestHandler):
             def _check_headers(self) -> bool:
                 if not _host_allowed(self.headers.get("Host")):
@@ -129,6 +143,4 @@ class RagServer:
             def log_message(self, format: str, *args: object) -> None:
                 pass  # silence HTTP logs
 
-        # Bind to loopback only.
-        self._httpd = _ThreadedHTTPServer(("127.0.0.1", self._port), Handler)
-        self._httpd.serve_forever()
+        return Handler
