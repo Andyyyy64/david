@@ -1365,13 +1365,51 @@ pre {
 /* ── Responsive: Tablet (< 768px) ── */
 
 @media (max-width: 767px) {
+  /* Header: switch to a wrapping two-row layout so nothing overflows.
+     Row 1: logo + action buttons + theme + live feed. Row 2: date picker. */
   .header {
-    padding: var(--space-xs) var(--space-sm);
-    height: 44px;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    row-gap: 4px;
+    column-gap: var(--space-xs);
+    padding: 6px var(--space-sm);
+    height: auto;
+    min-height: 44px;
+  }
+
+  .header-left {
+    flex: 1 1 auto;
+    min-width: 0;
+    gap: var(--space-xs);
+    flex-wrap: wrap;
+  }
+
+  .header-center {
+    flex: 1 1 100%;
+    order: 3; /* drop to the second row */
+    gap: var(--space-xs);
+    justify-content: flex-start;
+  }
+
+  .header-right {
+    flex: 0 0 auto;
+    gap: var(--space-xs);
   }
 
   .header-title {
     font-size: 14px;
+  }
+
+  .header-logo {
+    width: 26px;
+    height: 26px;
+  }
+
+  /* Clock is decorative and wastes horizontal space — date picker already
+     shows the current day. */
+  .header-clock {
+    display: none;
   }
 
   .header-count {
@@ -1383,18 +1421,23 @@ pre {
   }
 
   .date-picker {
-    font-size: 12px;
-    padding: 2px var(--space-xs);
+    font-size: 14px; /* >=14 prevents iOS auto-zoom on focus */
+    padding: 3px var(--space-xs);
   }
 
   .dashboard-btn {
-    font-size: 10px;
-    padding: 2px 6px;
+    font-size: 11px;
+    padding: 3px 8px;
+    white-space: nowrap;
+  }
+
+  .live-feed {
+    gap: 4px;
   }
 
   .live-image {
-    width: 48px;
-    height: 36px;
+    width: 40px;
+    height: 30px;
   }
 
   .live-indicator {
@@ -1423,8 +1466,8 @@ pre {
 
   /* Bigger touch targets for timeline dots */
   .timeline-dot {
-    min-width: 12px;
-    min-height: 12px;
+    min-width: 14px;
+    min-height: 14px;
   }
 
   .timeline-hour {
@@ -1481,9 +1524,45 @@ pre {
     font-size: 16px;
   }
 
-  /* Search panel */
+  /* Search panel — 16px prevents iOS zoom on focus */
   .search-input {
-    font-size: 16px; /* prevent iOS zoom */
+    font-size: 16px;
+  }
+
+  /* Keep the settings gear and RAG FAB clear of the demo footer banner. */
+  .settings-gear-btn {
+    bottom: 52px;
+    left: 12px;
+  }
+
+  .ws-indicator {
+    bottom: 58px;
+    left: 38px;
+  }
+
+  .rag-chat-fab {
+    bottom: 52px;
+    right: 12px;
+  }
+
+  /* Demo footer banner: let text wrap cleanly instead of overflowing. */
+  .demo-footer-banner {
+    font-size: 0.7rem;
+    padding: 4px var(--space-sm);
+    text-align: center;
+    line-height: 1.3;
+  }
+
+  /* Warning banner: allow wrapping to multiple lines. */
+  .warning-banner {
+    flex-wrap: wrap;
+    font-size: 0.7rem;
+  }
+
+  /* Reserve space at the bottom of the app so the activity heatmap is not
+     hidden under the fixed demo-footer banner. */
+  .app:has(.demo-footer-banner) {
+    padding-bottom: 26px;
   }
 }
 
