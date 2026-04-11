@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.2.6] - 2026-04-11
+
+### Fixed
+
+- `RagServer.stop()` now fully releases the listening socket on port 3003 (`shutdown` → thread join → `server_close` → engine close). Previously only `shutdown()` was called, so the hot-reload path that rebuilds the RAG server after an LLM config change failed with `Address already in use` and left the RAG chat endpoint dead until the daemon was restarted. `start()` also now binds the socket synchronously so `stop()` can never race with a half-initialised server. Covered by a new e2e regression test (`test_stop_then_start_same_port_succeeds`).
+
 ## [0.2.5] - 2026-04-10
 
 ### Security
