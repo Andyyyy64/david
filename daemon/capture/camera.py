@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 import sys
+import time
 from typing import TYPE_CHECKING
 
 import cv2
@@ -45,6 +46,10 @@ class Camera:
         self._cap.set(cv2.CAP_PROP_FPS, 30)
         # Minimize internal buffer to reduce latency
         self._cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+        # AVFoundation often needs a brief warm-up before the first frame read.
+        for _ in range(3):
+            self._cap.grab()
+            time.sleep(0.05)
         log.info("Camera opened: device=%d, %dx%d", self._config.device, self._config.width, self._config.height)
         return True
 
@@ -52,11 +57,14 @@ class Camera:
         if self._cap is None or not self._cap.isOpened():
             log.warning("Camera not opened")
             return None
-        ret, frame = self._cap.read()
-        if not ret:
-            log.warning("Failed to read frame")
-            return None
-        return frame
+        for attempt in range(3):
+            ret, frame = self._cap.read()
+            if ret:
+                return frame
+            if attempt < 2:
+                time.sleep(0.05)
+        log.warning("Failed to read frame")
+        return None
 
     def grab(self) -> bool:
         """Grab a frame without decoding (drains buffer)."""

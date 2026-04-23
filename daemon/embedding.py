@@ -21,14 +21,21 @@ class Embedder:
         self._model = model
         self._dimensions = dimensions
         self._client = None
+        self._disabled = False
+        self._missing_key_logged = False
 
     def _get_client(self):
+        if self._disabled:
+            return None
         if self._client is not None:
             return self._client
 
         api_key = os.environ.get("GEMINI_API_KEY")
         if not api_key:
-            log.error("GEMINI_API_KEY not set — embedding disabled")
+            if not self._missing_key_logged:
+                log.warning("GEMINI_API_KEY not set — embedding disabled")
+                self._missing_key_logged = True
+            self._disabled = True
             return None
 
         try:

@@ -110,6 +110,7 @@ class Daemon:
             provider = create_provider(
                 config.llm.provider,
                 claude_model=config.llm.claude_model,
+                codex_model=config.llm.codex_model,
                 gemini_model=config.llm.gemini_model,
             )
             log.info("LLM provider: %s", config.llm.provider)
@@ -154,6 +155,7 @@ class Daemon:
         self._last_summary: dict[str, datetime] = {scale: now for scale in SCALES}
         self._last_report_date: str = now.strftime("%Y-%m-%d")
         self._last_cleanup_date: str = ""  # triggers cleanup on first tick
+        self._started_at: str = now.isoformat()
 
     def run(self):
         try:
@@ -338,15 +340,19 @@ class Daemon:
             log.info("Camera reconnected successfully")
             self._consecutive_cam_failures = 0
             self._cam_reconnect_cooldown = 0
+            self._has_camera = True
+            self._write_status()
             return True
         else:
             log.error("Camera reconnect failed, will retry in 30s")
             self._cam_reconnect_cooldown = time.time() + 30
+            self._has_camera = False
+            self._write_status()
             return False
 
     def _check_config_reload(self) -> None:
         """Hot-swap the LLM stack when llm.provider / gemini_model /
-        claude_model change in the settings table. Called at the top of each
+        claude_model / codex_model change in the settings table. Called at the top of each
         tick so swaps happen at a natural boundary: no in-flight analyze call
         is torn down mid-request because each _tick() holds local references
         that finish on the old provider before the next tick rebinds them.
@@ -379,17 +385,20 @@ class Daemon:
             new_llm.provider == old_llm.provider
             and new_llm.gemini_model == old_llm.gemini_model
             and new_llm.claude_model == old_llm.claude_model
+            and new_llm.codex_model == old_llm.codex_model
         ):
             return
 
         log.info(
-            "Hot-reloading LLM config: provider=%s→%s gemini_model=%s→%s claude_model=%s→%s",
+            "Hot-reloading LLM config: provider=%s→%s gemini_model=%s→%s claude_model=%s→%s codex_model=%s→%s",
             old_llm.provider,
             new_llm.provider,
             old_llm.gemini_model,
             new_llm.gemini_model,
             old_llm.claude_model,
             new_llm.claude_model,
+            old_llm.codex_model,
+            new_llm.codex_model,
         )
 
         # Build the new provider before touching any live instances so a
@@ -401,6 +410,7 @@ class Daemon:
                 provider = create_provider(
                     new_llm.provider,
                     claude_model=new_llm.claude_model,
+                    codex_model=new_llm.codex_model,
                     gemini_model=new_llm.gemini_model,
                 )
             except Exception as exc:
@@ -423,6 +433,7 @@ class Daemon:
         self._config.llm.provider = new_llm.provider
         self._config.llm.gemini_model = new_llm.gemini_model
         self._config.llm.claude_model = new_llm.claude_model
+        self._config.llm.codex_model = new_llm.codex_model
 
         # Swap the provider-dependent instances. Attribute writes are atomic
         # under the GIL, so any tick currently holding a local reference to
@@ -470,9 +481,11 @@ class Daemon:
                     "llm_provider": new_llm.provider,
                     "gemini_model": new_llm.gemini_model,
                     "claude_model": new_llm.claude_model,
+                    "codex_model": new_llm.codex_model,
                 },
             )
         )
+        self._write_status()
 
     def _tick(self):
         self._check_config_reload()
@@ -915,7 +928,7 @@ class Daemon:
             "running": True,
             "camera": self._has_camera,
             "mic": self._has_mic,
-            "started_at": datetime.now().isoformat(),
+            "started_at": self._started_at,
             "llm_provider": self._config.llm.provider,
             "llm_error": llm_error,
         }

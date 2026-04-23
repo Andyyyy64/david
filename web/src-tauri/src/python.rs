@@ -12,6 +12,22 @@ fn verify_python_binary(path: &Path) -> Option<PathBuf> {
     Some(canonical)
 }
 
+/// Accept a `.venv` interpreter path that lives under the repo root even if
+/// the file itself is a symlink to a shared interpreter outside the repo
+/// (common with uv/pyenv on macOS).
+fn verify_repo_venv_python(repo_root: &Path, path: &Path) -> Option<PathBuf> {
+    let canon_root = repo_root.canonicalize().ok()?;
+    let canon_parent = path.parent()?.canonicalize().ok()?;
+    if !canon_parent.starts_with(&canon_root) {
+        return None;
+    }
+    let meta = std::fs::metadata(path).ok()?;
+    if !meta.is_file() {
+        return None;
+    }
+    Some(path.to_path_buf())
+}
+
 /// Find the Python binary by checking (in order):
 /// 1. `VIDA_PYTHON` env var
 /// 2. `.venv` in the given `repo_root`
@@ -29,21 +45,17 @@ pub fn find_python(repo_root: &PathBuf) -> Result<PathBuf, String> {
         }
     }
 
-    // 2. .venv in repo root — must resolve to a path under repo_root so an
-    //    attacker can't replace .venv with a symlink to a rogue binary.
+    // 2. .venv in repo root. uv commonly creates a symlinked interpreter
+    //    whose real target lives outside the repo (for example under pyenv),
+    //    so we verify that the `.venv/bin` directory itself is inside the
+    //    repo and then execute the venv path directly.
     let venv_python = if cfg!(windows) {
         repo_root.join(".venv").join("Scripts").join("python.exe")
     } else {
         repo_root.join(".venv").join("bin").join("python")
     };
-    if let Some(verified) = verify_python_binary(&venv_python) {
-        if let Ok(canon_root) = repo_root.canonicalize() {
-            if verified.starts_with(&canon_root) {
-                return Ok(verified);
-            }
-        } else {
-            return Ok(verified);
-        }
+    if let Some(verified) = verify_repo_venv_python(repo_root, &venv_python) {
+        return Ok(verified);
     }
 
     // 3. python3 on PATH
@@ -78,4 +90,3 @@ fn which_on_path(name: &str) -> Option<PathBuf> {
         Some(PathBuf::from(first))
     }
 }
-

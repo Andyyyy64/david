@@ -77,19 +77,49 @@ export default function App() {
   const { events } = useEvents(date);
   const memo = useDailyMemo(date);
 
+  const refreshWarnings = useCallback(() => {
+    Promise.all([
+      api.status(),
+      api.settings.get() as Promise<{ llm?: { provider?: string }; env_masked: Record<string, string> }>,
+      api.context.get().catch(() => ({ content: '' })),
+    ]).then(([s, settings, ctx]) => {
+      const w: string[] = [];
+      if (!s.camera && !s.mic) {
+        w.push('warnings.noCameraAndMic');
+      } else {
+        if (!s.camera) w.push('warnings.noCamera');
+        if (!s.mic) w.push('warnings.noMic');
+      }
+      const provider = settings.llm?.provider ?? 'claude';
+      if (provider === 'gemini' && !settings.env_masked?.GEMINI_API_KEY) {
+        w.push('warnings.apiKeyRequired');
+      }
+      if (!ctx.content?.trim()) {
+        w.push('warnings.profileRecommended');
+      }
+      setWarnings(w);
+    }).catch(() => {
+      setWarnings(['warnings.daemonNotRunning']);
+    });
+  }, []);
+
   // WebSocket connection to daemon for real-time updates
   const handleWSEvent = useCallback((event: WSEvent) => {
     if (event.type === 'frame_analyzed' || event.type === 'new_frame') {
       window.dispatchEvent(new CustomEvent('vida:refresh-frames'));
+      refreshWarnings();
     }
     if (event.type === 'new_summary') {
       window.dispatchEvent(new CustomEvent('vida:refresh-summaries'));
+    }
+    if (event.type === 'config_reloaded') {
+      refreshWarnings();
     }
     if (event.type === 'llm_error') {
       const msg = event.message as string;
       addToast(`LLM: ${msg}`, 'error');
     }
-  }, [addToast]);
+  }, [addToast, refreshWarnings]);
 
   const { connected: wsConnected } = useWebSocket(
     isDemo ? { autoReconnect: false } : { onEvent: handleWSEvent },
@@ -119,29 +149,20 @@ export default function App() {
         setDate(dates[dates.length - 1]);
       }
     }).catch(console.error);
-    Promise.all([
-      api.status(),
-      api.settings.get() as Promise<{ env_masked: Record<string, string> }>,
-      api.context.get().catch(() => ({ content: '' })),
-    ]).then(([s, settings, ctx]) => {
-      const w: string[] = [];
-      if (!s.camera && !s.mic) {
-        w.push('warnings.noCameraAndMic');
-      } else {
-        if (!s.camera) w.push('warnings.noCamera');
-        if (!s.mic) w.push('warnings.noMic');
-      }
-      if (!settings.env_masked?.GEMINI_API_KEY) {
-        w.push('warnings.apiKeyRequired');
-      }
-      if (!ctx.content?.trim()) {
-        w.push('warnings.profileRecommended');
-      }
-      setWarnings(w);
-    }).catch(() => {
-      setWarnings(['warnings.daemonNotRunning']);
-    });
-  }, []);
+    refreshWarnings();
+  }, [refreshWarnings]);
+
+  useEffect(() => {
+    const handleSettingsUpdated = () => refreshWarnings();
+    window.addEventListener('vida:settings-updated', handleSettingsUpdated);
+    return () => window.removeEventListener('vida:settings-updated', handleSettingsUpdated);
+  }, [refreshWarnings]);
+
+  useEffect(() => {
+    if (isDemo) return;
+    const id = setInterval(refreshWarnings, 5000);
+    return () => clearInterval(id);
+  }, [isDemo, refreshWarnings]);
 
   useEffect(() => {
     fetchStats();
