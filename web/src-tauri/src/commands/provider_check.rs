@@ -84,6 +84,7 @@ pub async fn validate_provider(
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
+    crate::python::augment_command_path(&mut cmd);
 
     crate::hide_window(&mut cmd);
 

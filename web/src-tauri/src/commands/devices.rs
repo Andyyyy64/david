@@ -52,6 +52,7 @@ pub async fn get_devices(db: State<'_, AppDb>) -> Result<serde_json::Value, Stri
     cmd.arg(&canon_script)
         .current_dir(&canon_daemon)
         .env("PYTHONPATH", &canon_daemon);
+    crate::python::augment_command_path(&mut cmd);
 
     crate::hide_window(&mut cmd);
 

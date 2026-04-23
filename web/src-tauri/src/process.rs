@@ -48,6 +48,7 @@ impl DaemonProcess {
             .current_dir(config_dir)
             .env("PYTHONPATH", daemon_src)
             .env("DATA_DIR", data_dir);
+        crate::python::augment_command_path(&mut cmd);
 
         crate::hide_window(&mut cmd);
 

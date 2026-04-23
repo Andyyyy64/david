@@ -2,12 +2,12 @@ from __future__ import annotations
 
 import logging
 import os
-import shutil
 import subprocess
 import tempfile
 from pathlib import Path
 
 from daemon.llm.base import LLMProvider, retry_on_transient_error
+from daemon.llm.cli_paths import cli_env, find_cli_binary
 
 log = logging.getLogger(__name__)
 
@@ -16,7 +16,7 @@ _CODEX_CMD = "codex"
 
 def _clean_env() -> dict[str, str]:
     """Remove session-scoped Codex variables before spawning a nested CLI."""
-    env = os.environ.copy()
+    env = cli_env()
     for key in ("CODEX_THREAD_ID",):
         env.pop(key, None)
     return env
@@ -40,7 +40,7 @@ class CodexProvider(LLMProvider):
         return self._call(prompt, image_paths=image_paths, timeout=timeout)
 
     def _call(self, prompt: str, image_paths: list[Path] | None, timeout: int) -> str | None:
-        codex = shutil.which(_CODEX_CMD)
+        codex = find_cli_binary(_CODEX_CMD)
         if not codex:
             log.error("codex CLI not found in PATH")
             return None

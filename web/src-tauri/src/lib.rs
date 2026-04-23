@@ -83,6 +83,7 @@ fn resolve_paths(app: &tauri::App) -> (PathBuf, PathBuf, PathBuf, PathBuf) {
                 // Try uv sync first, fall back to pip
                 let mut uv_cmd = std::process::Command::new("uv");
                 uv_cmd.arg("sync").current_dir(&app_data);
+                python::augment_command_path(&mut uv_cmd);
                 hide_window(&mut uv_cmd);
                 let uv_result = uv_cmd.status();
                 match uv_result {
@@ -93,6 +94,7 @@ fn resolve_paths(app: &tauri::App) -> (PathBuf, PathBuf, PathBuf, PathBuf) {
                         eprintln!("uv not found or failed; trying pip...");
                         let mut venv_cmd = std::process::Command::new("python");
                         venv_cmd.args(["-m", "venv", ".venv"]).current_dir(&app_data);
+                        python::augment_command_path(&mut venv_cmd);
                         hide_window(&mut venv_cmd);
                         let _ = venv_cmd.status();
                         let pip_bin = if cfg!(windows) {

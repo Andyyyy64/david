@@ -4,6 +4,7 @@ from pathlib import Path
 from types import SimpleNamespace
 
 from daemon.llm import create_provider
+from daemon.llm.cli_paths import find_cli_binary
 from daemon.llm.codex import CodexProvider
 
 
@@ -22,7 +23,7 @@ def test_codex_provider_generate_text_invokes_codex_exec(monkeypatch):
         output_path.write_text("generated")
         return SimpleNamespace(returncode=0)
 
-    monkeypatch.setattr("daemon.llm.codex.shutil.which", lambda _: "/usr/bin/codex")
+    monkeypatch.setattr("daemon.llm.codex.find_cli_binary", lambda _: "/usr/bin/codex")
     monkeypatch.setattr("daemon.llm.codex.subprocess.run", fake_run)
 
     provider = CodexProvider(model="gpt-5.4")
@@ -56,7 +57,7 @@ def test_codex_provider_analyze_images_attaches_images(monkeypatch, tmp_path):
         output_path.write_text("analysis")
         return SimpleNamespace(returncode=0)
 
-    monkeypatch.setattr("daemon.llm.codex.shutil.which", lambda _: "/usr/bin/codex")
+    monkeypatch.setattr("daemon.llm.codex.find_cli_binary", lambda _: "/usr/bin/codex")
     monkeypatch.setattr("daemon.llm.codex.subprocess.run", fake_run)
 
     provider = CodexProvider()
@@ -77,3 +78,16 @@ def test_codex_provider_analyze_images_attaches_images(monkeypatch, tmp_path):
     ]
     assert "-o" in calls[0]
     assert calls[0][-4:] == ["-i", str(image_path.resolve()), "--", "describe"]
+
+
+def test_find_cli_binary_checks_nodebrew_home(monkeypatch, tmp_path):
+    bin_dir = tmp_path / ".nodebrew" / "current" / "bin"
+    bin_dir.mkdir(parents=True)
+    codex = bin_dir / "codex"
+    codex.write_text("#!/bin/sh\n")
+    codex.chmod(0o755)
+
+    monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.setenv("PATH", "/usr/bin:/bin")
+
+    assert find_cli_binary("codex") == str(codex)

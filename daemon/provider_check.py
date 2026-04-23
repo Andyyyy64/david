@@ -2,9 +2,9 @@ from __future__ import annotations
 
 import json
 import os
-import shutil
 import sys
 
+from daemon.llm.cli_paths import find_cli_binary
 from daemon.llm import create_provider
 
 
@@ -41,11 +41,11 @@ def main() -> int:
             return 0
         os.environ["GEMINI_API_KEY"] = api_key
 
-    if provider == "claude" and not shutil.which("claude"):
+    if provider == "claude" and not find_cli_binary("claude"):
         _emit({"ok": False, "code": "missing_binary"})
         return 0
 
-    if provider == "codex" and not shutil.which("codex"):
+    if provider == "codex" and not find_cli_binary("codex"):
         _emit({"ok": False, "code": "missing_binary"})
         return 0
 

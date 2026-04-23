@@ -2,12 +2,12 @@ from __future__ import annotations
 
 import logging
 import os
-import shutil
 import subprocess
 import tempfile
 from pathlib import Path
 
 from daemon.llm.base import LLMProvider, retry_on_transient_error
+from daemon.llm.cli_paths import cli_env, find_cli_binary
 
 log = logging.getLogger(__name__)
 
@@ -16,7 +16,7 @@ _CLAUDE_CMD = "claude"
 
 def _clean_env() -> dict[str, str]:
     """Remove Claude Code session markers so subprocess doesn't think it's nested."""
-    env = os.environ.copy()
+    env = cli_env()
     for key in ("CLAUDECODE", "CLAUDE_CODE_ENTRYPOINT"):
         env.pop(key, None)
     return env
@@ -49,7 +49,7 @@ class ClaudeProvider(LLMProvider):
     # transcribe_audio() inherits the default (returns "").
 
     def _call(self, prompt: str, timeout: int) -> str | None:
-        claude = shutil.which(_CLAUDE_CMD)
+        claude = find_cli_binary(_CLAUDE_CMD)
         if not claude:
             log.error("claude CLI not found in PATH")
             return None
