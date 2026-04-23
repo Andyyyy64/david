@@ -129,8 +129,9 @@ jobs:
             ### Setup
             1. **Download and install** the app for your platform
             2. **Python required**: ensure Python 3.12+ is installed, then run `uv sync` in the app directory
-            3. **Add your API key** via Settings (gear icon)
-               - Get a free Gemini key at https://aistudio.google.com/
+            3. **Choose an AI provider** in onboarding or Settings
+               - Recommended: sign in to Claude Code or Codex CLI for local analysis
+               - Alternative: add a Gemini API key at https://aistudio.google.com/
 
             ### macOS note
             App is unsigned — right-click → Open to bypass Gatekeeper.

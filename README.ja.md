@@ -1,16 +1,16 @@
 # vida
 
-> *vida* — スペイン語で「人生」。あなたの毎日を、記憶する。
+> *vida* — スペイン語で「人生」。Claude Code や Codex と一緒に、あなたの毎日を検索できる記憶に変える。
 
 [![CI](https://github.com/Andyyyy64/vida/actions/workflows/ci.yml/badge.svg)](https://github.com/Andyyyy64/vida/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-0.2.4-green.svg)](https://github.com/Andyyyy64/vida/releases)
+[![Version](https://img.shields.io/badge/version-0.5.1-green.svg)](https://github.com/Andyyyy64/vida/releases)
 [![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey.svg)]()
 [![Live Demo](https://img.shields.io/badge/Live%20Demo-Open-blue)](https://vida-demo-phi.vercel.app)
 
 [English](README.md) | **日本語**
 
-あなたの日常をそっと見守り、すべてを記憶し、時間の使い方を可視化するパーソナルAI。
+あなたの日常をそっと見守り、すべてを記憶し、時間の使い方を可視化するパーソナルAI。推奨構成は Claude Code / Codex CLI によるローカル分析で、Gemini API キーも引き続き利用できます。
 
 ### ライブデモ
 
@@ -20,8 +20,10 @@
 
 ## クイックスタート
 
-> **前提条件:** Python 3.12+、Node.js 22+、[uv](https://docs.astral.sh/uv/)、[Gemini APIキー](https://aistudio.google.com/)
+> **前提条件:** Python 3.12+、Node.js 22+、[uv](https://docs.astral.sh/uv/)、そして AI プロバイダーのいずれか 1 つ: Claude Code CLI / Codex CLI / [Gemini APIキー](https://aistudio.google.com/)
 > 未インストールの場合は[セットアップガイド](getting-started.ja.md)を参照してください。
+
+**推奨:** Claude Code か Codex CLI を使ってローカルで解析します。Gemini API キーを使う構成も、オンボーディングと設定画面からそのまま利用できます。
 
 <details>
 <summary><b>Windows（PowerShell）— 5分</b></summary>
@@ -33,9 +35,11 @@ cd vida
 uv sync
 cd web; npm install; cd ..
 
-# 2. APIキーを設定
+# 2. AI プロバイダーを選択
+# 推奨: 先に Claude Code か Codex CLI にログイン
+# Gemini を使う場合だけ API キーを設定
 "GEMINI_API_KEY=your-key-here" | Out-File -Encoding utf8 .env
-# 初回起動後は、アプリ内の設定パネルからもAPIキーを設定できます。
+# プロバイダーはオンボーディングや設定画面からも選べます。
 
 # 3. デスクトップアプリを起動
 cd web; npx tauri dev
@@ -55,9 +59,11 @@ cd vida
 uv sync
 cd web && npm install && cd ..
 
-# 2. APIキーを設定
+# 2. AI プロバイダーを選択
+# 推奨: 先に Claude Code か Codex CLI にログイン
+# Gemini を使う場合だけ API キーを設定
 echo "GEMINI_API_KEY=your-key-here" > .env
-# 初回起動後は、アプリ内の設定パネルからもAPIキーを設定できます。
+# プロバイダーはオンボーディングや設定画面からも選べます。
 
 # 3. デスクトップアプリを起動
 cd web && npx tauri dev
@@ -75,8 +81,10 @@ git clone https://github.com/Andyyyy64/vida.git
 cd vida
 uv sync
 cd web && npm install && cd ..
+# 推奨: 先に Claude Code か Codex CLI にログイン
+# Gemini を使う場合だけ API キーを設定
 echo "GEMINI_API_KEY=your-key-here" > .env
-# 初回起動後は、アプリ内の設定パネルからもAPIキーを設定できます。
+# プロバイダーはオンボーディングや設定画面からも選べます。
 
 # デーモン + Web UIを起動
 ./start.sh
@@ -134,7 +142,7 @@ life status    # デーモンの状態確認
 
 ### AI分析
 
-- **フレーム分析** — 毎ティックにカメラ画像・画面キャプチャ・音声・ウィンドウ情報をLLM（GeminiまたはClaude）に送信。アクティビティカテゴリと自然言語説明をJSON形式で取得。
+- **フレーム分析** — 毎ティックにカメラ画像・画面キャプチャ・音声・ウィンドウ情報を LLM（Claude Code、Codex CLI、Gemini）に送信。アクティビティカテゴリと自然言語説明を JSON 形式で取得。
 - **アクティビティ分類** — LLMが既知カテゴリから選択（新カテゴリは自動登録）。LCS類似度（≥0.7）でファジーマッチング・正規化。アクティビティ→メタカテゴリのマッピングは`activity_mappings`テーブルで管理。`life consolidate-activities`コマンドでLLMが類義語・表記ゆれをまとめてマージ可能。
 - **メタカテゴリ** — アクティビティを6つのメタカテゴリに動的マッピング: **focus（集中作業）**, **communication（コミュニケーション）**, **entertainment（エンタメ）**, **browsing（ブラウジング）**, **break（休憩）**, **idle（アイドル）**。
 - **マルチスケールサマリー** — 階層的に生成: 10分（生フレームから）→ 30分 → 1時間 → 6時間 → 12時間 → 24時間（キーフレーム画像・文字起こし・改善提案含む）。
@@ -195,7 +203,7 @@ daemon/ (Python)         tauri/ (Rust)             frontend (React)
 - デーモンがSQLiteに書き込み、WebサーバーがWALモードで読み取り（同時アクセス対応）
 - ウィンドウモニターは独立したSQLite接続を持つ永続PowerShellプロセスで動作
 - 共有`data/`ディレクトリ: `frames/`, `screens/`, `audio/`, `life.db`
-- LLMプロバイダーは抽象化: Gemini または Claude、`life.toml`で設定
+- LLMプロバイダーは抽象化: Claude Code CLI、Codex CLI、Gemini API、または external WebSocket を `life.toml` で設定
 
 ### スレッドモデル
 
@@ -231,7 +239,8 @@ daemon/                  # Pythonパッケージ
   ├─ llm/                # LLMプロバイダー抽象化
   │   ├─ base.py         # 抽象基底クラス
   │   ├─ gemini.py       # Google Gemini（画像・音声対応）
-  │   └─ claude.py       # Anthropic Claude（CLI経由）
+  │   ├─ claude.py       # Anthropic Claude（CLI経由）
+  │   └─ codex.py        # OpenAI Codex（CLI経由）
   ├─ capture/            # データキャプチャモジュール
   │   ├─ camera.py       # ウェブカメラ（V4L2 / AVFoundation）
   │   ├─ screen.py       # 画面キャプチャ（PowerShell / screencapture）
@@ -298,11 +307,13 @@ data/                    # 実行時データ（gitignore済み）
 | マイク | 内蔵 / USB（WASAPI） | 外付けUSB（usbipd経由） | 内蔵マイク |
 | 画面キャプチャ | PowerShell + Windows Forms | PowerShell + Windows Forms | `screencapture`（内蔵） |
 | ウィンドウ監視 | PowerShell + Win32 API | PowerShell + Win32 API | `osascript`（内蔵） |
-| Gemini APIキー | 必要 | 必要 | 必要 |
+| AI プロバイダー | Claude Code CLI / Codex CLI / Gemini API キー | Claude Code CLI / Codex CLI / Gemini API キー | Claude Code CLI / Codex CLI / Gemini API キー |
 
 ### 設定
 
 設定はデスクトップアプリの**設定UI**で管理されます（`data/life.db`の`settings`テーブルに保存）。初回起動時にデフォルト値が自動適用されます。CLIのみで使用する場合は、`life.toml`と`.env`がフォールバックとして機能します。
+
+**推奨プロバイダー:** Claude Code または Codex CLI によるローカル分析。Gemini API キーを使う構成も引き続き利用できます。
 
 **ヒント:** `data/context.md`に名前・職業・習慣を書くと、AIがより正確なアクティビティ説明を生成します。
 
@@ -352,8 +363,9 @@ docker compose up
 | `analysis.motion_threshold` | `0.02` | MOG2前景ピクセル比率 |
 | `analysis.brightness_dark` | `40.0` | これ以下 = DARK |
 | `analysis.brightness_bright` | `180.0` | これ以上 = BRIGHT |
-| `llm.provider` | `"gemini"` | "gemini" または "claude" |
+| `llm.provider` | `"claude"` | "gemini"、"claude"、"codex"、または "external" |
 | `llm.claude_model` | `"haiku"` | Claudeモデル名 |
+| `llm.codex_model` | `"gpt-5.4"` | Codexモデル名 |
 | `llm.gemini_model` | `"gemini-3.1-flash-lite-preview"` | Geminiモデル名 |
 | `presence.enabled` | `true` | 在席検出の有効化 |
 | `presence.absent_threshold_ticks` | `3` | 離席判定までのティック数 |
@@ -446,7 +458,7 @@ docker compose up
 ## 技術スタック
 
 - **デーモン**: Python 3.12 / Click / OpenCV / SQLite（WALモード）
-- **LLM**: Google Gemini（画像・音声）/ Anthropic Claude（CLI経由）
+- **LLM**: Anthropic Claude Code CLI / OpenAI Codex CLI / Google Gemini（画像・音声）
 - **ウィンドウ追跡**: PowerShell / Win32 P/Invoke（`GetForegroundWindow`）/ osascript（macOS）
 - **デスクトップ**: Tauri v2 / Rust / rusqlite / WebView2 (Windows) / WebKitGTK (Linux) / WKWebView (macOS)
 - **フロントエンド**: React 19 / TypeScript / Vite 6

@@ -1,16 +1,16 @@
 # vida
 
-> *vida* — Spanish for "life." Your life, remembered.
+> *vida* — Spanish for "life." Turn your day into searchable memory with Claude Code, Codex, or Gemini.
 
 [![CI](https://github.com/Andyyyy64/vida/actions/workflows/ci.yml/badge.svg)](https://github.com/Andyyyy64/vida/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-0.2.4-green.svg)](https://github.com/Andyyyy64/vida/releases)
+[![Version](https://img.shields.io/badge/version-0.5.1-green.svg)](https://github.com/Andyyyy64/vida/releases)
 [![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey.svg)]()
 [![Live Demo](https://img.shields.io/badge/Live%20Demo-Open-blue)](https://vida-demo-phi.vercel.app)
 
 **English** | [日本語](README.ja.md)
 
-A personal AI that quietly watches your day-to-day life, remembers everything, and helps you understand how you spend your time.
+A personal AI that quietly watches your day-to-day life, remembers everything, and helps you understand how you spend your time. The recommended setup is local analysis through Claude Code or Codex CLI, with Gemini API support still available.
 
 ### Live Demo
 
@@ -20,8 +20,10 @@ Experience a simulated vida session in the browser. The demo uses the real UI wi
 
 ## Quick Start
 
-> **Prerequisites:** Python 3.12+, Node.js 22+, [uv](https://docs.astral.sh/uv/), and a [Gemini API key](https://aistudio.google.com/).
+> **Prerequisites:** Python 3.12+, Node.js 22+, [uv](https://docs.astral.sh/uv/), plus one AI provider: Claude Code CLI, Codex CLI, or a [Gemini API key](https://aistudio.google.com/).
 > Don't have these yet? See the [full setup guide](getting-started.md) for installation instructions.
+
+**Recommended:** use Claude Code or Codex CLI so vida can analyze your day locally. Gemini API keys remain fully supported in onboarding and Settings.
 
 <details>
 <summary><b>Windows (PowerShell) — 5 min</b></summary>
@@ -33,9 +35,11 @@ cd vida
 uv sync
 cd web; npm install; cd ..
 
-# 2. Set your API key
+# 2. Pick one AI provider
+# Recommended: sign in to Claude Code or Codex CLI first.
+# If you prefer Gemini, set your API key:
 "GEMINI_API_KEY=your-key-here" | Out-File -Encoding utf8 .env
-# After first launch, you can also set this in the Settings panel inside the app.
+# You can also choose the provider during onboarding or later in Settings.
 
 # 3. Launch the desktop app
 cd web; npx tauri dev
@@ -55,9 +59,11 @@ cd vida
 uv sync
 cd web && npm install && cd ..
 
-# 2. Set your API key
+# 2. Pick one AI provider
+# Recommended: sign in to Claude Code or Codex CLI first.
+# If you prefer Gemini, set your API key:
 echo "GEMINI_API_KEY=your-key-here" > .env
-# After first launch, you can also set this in the Settings panel inside the app.
+# You can also choose the provider during onboarding or later in Settings.
 
 # 3. Launch the desktop app
 cd web && npx tauri dev
@@ -75,8 +81,10 @@ git clone https://github.com/Andyyyy64/vida.git
 cd vida
 uv sync
 cd web && npm install && cd ..
+# Recommended: sign in to Claude Code or Codex CLI first.
+# If you prefer Gemini, set your API key:
 echo "GEMINI_API_KEY=your-key-here" > .env
-# After first launch, you can also set this in the Settings panel inside the app.
+# You can also choose the provider during onboarding or later in Settings.
 
 # Start daemon + web UI
 ./start.sh
@@ -134,7 +142,7 @@ Three pillars:
 
 ### AI Analysis
 
-- **Frame analysis** — Each tick sends camera image + screen capture + audio + foreground window info to LLM (Gemini or Claude). Returns structured JSON with activity category and natural language description.
+- **Frame analysis** — Each tick sends camera image + screen capture + audio + foreground window info to LLM (Gemini, Claude Code, or Codex CLI). Returns structured JSON with activity category and natural language description.
 - **Activity classification** — LLM freely generates activity category names. Existing categories are shown as examples for consistency, and new categories are accepted and registered automatically. Fuzzy matching (LCS similarity ≥ 0.7) normalizes variants to existing categories. All activity → meta-category mappings are stored in the `activity_mappings` DB table.
 - **Meta-categories** — Activities are dynamically mapped to 6 meta-categories for productivity scoring: **focus**, **communication**, **entertainment**, **browsing**, **break**, **idle**. The LLM outputs the meta-category alongside each activity. The mapping is stored in DB and served to the frontend via API.
 - **Multi-scale summaries** — Hierarchical generation: 10m (from raw frames) → 30m → 1h → 6h → 12h → 24h (includes keyframe images + transcriptions + improvement suggestions). Each scale builds from the one below.
@@ -203,7 +211,7 @@ daemon/ (Python)         tauri/ (Rust)             frontend (React)
 - Daemon writes to SQLite, web reads it (WAL mode for concurrent access)
 - Window monitor runs a persistent PowerShell process with its own SQLite connection
 - Shared `data/` directory: `frames/`, `screens/`, `audio/`, `life.db`
-- LLM provider abstracted: Gemini or Claude, configured in `life.toml`
+- LLM provider abstracted: Gemini API, Claude Code CLI, Codex CLI, or external WebSocket, configured in `life.toml`
 
 ### Threading model
 
@@ -239,7 +247,8 @@ daemon/                  # Python package
   ├─ llm/                # LLM provider abstraction
   │   ├─ base.py         # Abstract base class
   │   ├─ gemini.py       # Google Gemini (image + audio support)
-  │   └─ claude.py       # Anthropic Claude (via CLI)
+  │   ├─ claude.py       # Anthropic Claude (via CLI)
+  │   └─ codex.py        # OpenAI Codex (via CLI)
   ├─ capture/            # Data capture modules
   │   ├─ camera.py       # Webcam (V4L2 / MJPEG)
   │   ├─ screen.py       # Screen capture (PowerShell)
@@ -306,11 +315,13 @@ See **[getting-started.md](getting-started.md)** for full platform-specific inst
 | Microphone | Built-in / USB (WASAPI) | External USB via usbipd | Built-in |
 | Screen capture | PowerShell + Windows Forms | PowerShell + Windows Forms | `screencapture` (built-in) |
 | Window tracking | PowerShell + Win32 API | PowerShell + Win32 API | `osascript` (built-in) |
-| Gemini API key | Required | Required | Required |
+| AI provider | Claude Code CLI / Codex CLI / Gemini API key | Claude Code CLI / Codex CLI / Gemini API key | Claude Code CLI / Codex CLI / Gemini API key |
 
 ### Configuration
 
 Settings are managed via the **Settings UI** inside the desktop app (stored in the `settings` table of `data/life.db`). On first launch, defaults are applied automatically. For CLI-only use, settings can also be configured via `life.toml` and `.env` as fallback.
+
+**Recommended provider:** Claude Code or Codex CLI for local analysis. Gemini remains available when you want API-key-based setup.
 
 **Tip:** Create `data/context.md` with your name, occupation, and habits — the AI uses this for more accurate activity descriptions.
 
@@ -360,8 +371,9 @@ Settings are managed via the **Settings UI** in the desktop app and stored in th
 | `analysis.motion_threshold` | `0.02` | MOG2 foreground pixel ratio |
 | `analysis.brightness_dark` | `40.0` | Below = DARK scene |
 | `analysis.brightness_bright` | `180.0` | Above = BRIGHT scene |
-| `llm.provider` | `"gemini"` | "gemini" or "claude" |
+| `llm.provider` | `"claude"` | "gemini", "claude", "codex", or "external" |
 | `llm.claude_model` | `"haiku"` | Claude model name |
+| `llm.codex_model` | `"gpt-5.4"` | Codex model name |
 | `llm.gemini_model` | `"gemini-3.1-flash-lite-preview"` | Gemini model name |
 | `presence.enabled` | `true` | Enable presence detection |
 | `presence.absent_threshold_ticks` | `3` | Ticks before absent state |
@@ -454,7 +466,7 @@ Daily user memos: date (primary key), content, updated_at. Editable only for tod
 ## Tech Stack
 
 - **Daemon**: Python 3.12 / Click / OpenCV / SQLite (WAL mode)
-- **LLM**: Google Gemini (image + audio) / Anthropic Claude (via CLI)
+- **LLM**: Anthropic Claude Code CLI / OpenAI Codex CLI / Google Gemini (image + audio)
 - **Window tracking**: PowerShell / Win32 P/Invoke (`GetForegroundWindow`)
 - **Desktop**: Tauri v2 / Rust / rusqlite / WebView2 (Windows) / WebKitGTK (Linux) / WKWebView (macOS)
 - **Frontend**: React 19 / TypeScript / Vite 6
